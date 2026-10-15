@@ -15,16 +15,25 @@ app.use(express.json());
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 import userRoutes from './routes/userRoutes.js';
 app.use('/api/v1/users', userRoutes);
+app.use('/users', userRoutes);
+
 import emailRoutes from './routes/emailRoutes.js';
 app.use('/api/v1/email', emailRoutes);
+app.use('/email', emailRoutes);
+
 import eventRoutes from './routes/eventRoutes.js';
 app.use('/api/v1/events', eventRoutes);
+app.use('/events', eventRoutes);
+
 import gpApplicationRoutes from './routes/gpApplicationRoutes.js';
 app.use('/api/v1/gp-applications', gpApplicationRoutes);
+app.use('/gp-applications', gpApplicationRoutes);
 
-app.get('/api/v1/health', (_req, res) => {
+app.get(['/api/v1/health', '/health'], (_req, res) => {
   const dbStatus = getDatabaseStatus();
   res.status(dbStatus.isConnected ? 200 : 503).json({
     success: dbStatus.isConnected,
@@ -39,11 +48,11 @@ app.get('/api/v1/health', (_req, res) => {
   });
 });
 
-app.get('/api/v1/applications', (_req, res) => {
+app.get(['/api/v1/applications', '/applications'], (_req, res) => {
   res.json({ success: true, data: [], message: 'Applications endpoint ready' });
 });
 
-app.get('/api/v1/roles', async (_req, res) => {
+app.get(['/api/v1/roles', '/roles'], async (_req, res) => {
   try {
     const roles = await Role.find().sort({ createdAt: 1 });
     res.json({ success: true, count: roles.length, data: roles });

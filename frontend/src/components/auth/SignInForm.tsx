@@ -46,7 +46,12 @@ export default function SignInForm() {
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = { message: `Server error (${response.status})` };
+      }
 
       if (response.ok && (data.token || data.data?.token)) {
         const token = data.token || data.data?.token;
