@@ -1,0 +1,33 @@
+{
+  "name": "raise-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "seed": "tsx src/seeds/seed.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.0",
+    "nodemailer": "^10.0.15",
+    "raise-platform": "file:..",
+    "ua-parser-js": "^2.0.10"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "latest",
+    "@types/nodemailer": "^8.0.2",
+    "@types/ua-parser-js": "^0.7.39",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
