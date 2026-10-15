@@ -6,13 +6,16 @@ let isConnected = false;
  * Connect to MongoDB using MONGODB_URI environment variable
  */
 async function connectDatabase() {
-  const uri = process.env.MONGODB_URI;
+  let uri = process.env.MONGODB_URI;
 
   if (!uri) {
     const errorMsg = 'MONGODB_URI environment variable is not defined.';
     console.error(`[Database Error] ${errorMsg}`);
     throw new Error(errorMsg);
   }
+
+  // Strip leading/trailing double or single quotes and whitespace
+  uri = uri.trim().replace(/^["']|["']$/g, '').trim();
 
   try {
     console.log('[Database] Connecting to MongoDB...');
