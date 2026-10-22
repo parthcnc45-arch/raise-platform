@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -10,6 +10,8 @@ import {
   Calendar,
   FileText,
   ChevronLeft,
+  ChevronDown,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -28,6 +30,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const pathname = usePathname();
 
+  const isUsersActive = pathname.startsWith("/users");
+  const [isAdminExpanded, setIsAdminExpanded] = useState(isUsersActive);
+
+  // Automatically expand Administration when Users route is active
+  useEffect(() => {
+    if (isUsersActive) {
+      setIsAdminExpanded(true);
+    }
+  }, [isUsersActive]);
+
   const navItems = [
     {
       name: "Dashboard",
@@ -43,11 +55,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: "Events",
       href: "/events",
       icon: Calendar,
-    },
-    {
-      name: "Users",
-      href: "/users",
-      icon: Users,
     },
   ];
 
@@ -133,6 +140,81 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </Link>
               );
             })}
+
+            {/* Administration Parent Menu */}
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isOpen) {
+                    setIsOpen(true);
+                    setIsAdminExpanded(true);
+                  } else {
+                    setIsAdminExpanded(!isAdminExpanded);
+                  }
+                }}
+                className={cn(
+                  "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all cursor-pointer",
+                  !isOpen && isUsersActive
+                    ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/25"
+                    : isUsersActive && !isAdminExpanded
+                    ? "bg-blue-50 text-blue-600 font-semibold"
+                    : isUsersActive
+                    ? "text-slate-800 font-medium hover:bg-slate-100"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  !isOpen && "justify-center px-2"
+                )}
+                title={!isOpen ? "Administration" : undefined}
+                aria-expanded={isOpen ? isAdminExpanded : undefined}
+              >
+                <Shield
+                  className={cn(
+                    "h-5 w-5 shrink-0 transition-colors",
+                    !isOpen && isUsersActive
+                      ? "text-white"
+                      : isUsersActive
+                      ? "text-blue-600"
+                      : "text-slate-400 group-hover:text-slate-700"
+                  )}
+                />
+                {isOpen && (
+                  <>
+                    <span className="flex-1 text-left">Administration</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200",
+                        isAdminExpanded && "rotate-180"
+                      )}
+                    />
+                  </>
+                )}
+              </button>
+
+              {/* Submenu (Users) */}
+              {isOpen && isAdminExpanded && (
+                <div className="mt-1 space-y-1 pl-4">
+                  <Link
+                    href="/users"
+                    onClick={() => setIsMobileOpen(false)}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
+                      isUsersActive
+                        ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/25"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                    title="Users"
+                  >
+                    <Users
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors",
+                        isUsersActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
+                      )}
+                    />
+                    <span>Users</span>
+                  </Link>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
       </div>

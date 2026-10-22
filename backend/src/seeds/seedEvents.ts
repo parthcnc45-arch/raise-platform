@@ -12,7 +12,7 @@ const dummyEvents = [
     "end_date": "2026-09-17T00:00:00.000Z",
     "application_start_date": "2026-05-01T00:00:00.000Z",
     "application_end_date": "2026-07-31T23:59:59.000Z",
-    "status": "closed",
+    "status": "Inactive",
     "is_active": false,
     "email_settings": {
       "use_custom_email": true,
@@ -35,7 +35,7 @@ const dummyEvents = [
     "end_date": "2027-09-16T00:00:00.000Z",
     "application_start_date": "2027-05-01T00:00:00.000Z",
     "application_end_date": "2027-07-31T23:59:59.000Z",
-    "status": "active",
+    "status": "Active",
     "is_active": true,
     "email_settings": {
       "use_custom_email": true,
@@ -58,7 +58,7 @@ const dummyEvents = [
     "end_date": "2027-11-12T00:00:00.000Z",
     "application_start_date": "2027-06-01T00:00:00.000Z",
     "application_end_date": "2027-09-15T23:59:59.000Z",
-    "status": "draft",
+    "status": "Inactive",
     "is_active": false,
     "email_settings": {
       "use_custom_email": false,
@@ -81,7 +81,7 @@ const dummyEvents = [
     "end_date": "2028-04-20T00:00:00.000Z",
     "application_start_date": "2027-12-01T00:00:00.000Z",
     "application_end_date": "2028-02-29T23:59:59.000Z",
-    "status": "draft",
+    "status": "Inactive",
     "is_active": false,
     "email_settings": {
       "use_custom_email": true,
@@ -104,7 +104,7 @@ const dummyEvents = [
     "end_date": "2028-09-22T00:00:00.000Z",
     "application_start_date": "2028-05-01T00:00:00.000Z",
     "application_end_date": "2028-07-31T23:59:59.000Z",
-    "status": "draft",
+    "status": "Inactive",
     "is_active": false,
     "email_settings": {
       "use_custom_email": true,

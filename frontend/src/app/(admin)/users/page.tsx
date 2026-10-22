@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import React from "react";
 import UserTable from "@/components/users/UserTable";
+import CreateUserModal from "@/components/users/CreateUserModal";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 
 export const metadata: Metadata = {
@@ -11,7 +12,10 @@ export const metadata: Metadata = {
 export default function UsersPage() {
   return (
     <div className="flex flex-1 flex-col space-y-6">
-      <PageBreadcrumb pageTitle="Users" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <PageBreadcrumb pageTitle="Users" />
+        <CreateUserModal />
+      </div>
       <UserTable />
     </div>
   );

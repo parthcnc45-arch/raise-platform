@@ -27,6 +27,7 @@ import {
 
 export default function GPApplicationTable() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -174,12 +175,22 @@ export default function GPApplicationTable() {
     return () => window.removeEventListener("gp-application-created", handleCreated);
   }, []);
 
+  // Debounce only search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch immediately on initial mount, pagination change, refresh, or when debounced search updates
   useEffect(() => {
     const fetchApplications = async () => {
       setLoading(true);
       try {
         let url = `/gp-applications?page=${currentPage}&limit=${itemsPerPage}`;
-        if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+        if (debouncedSearchTerm) url += `&search=${encodeURIComponent(debouncedSearchTerm)}`;
 
         const res = await apiClient(url);
         const result = await res.json();
@@ -204,12 +215,8 @@ export default function GPApplicationTable() {
       }
     };
 
-    const timer = setTimeout(() => {
-      fetchApplications();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [currentPage, itemsPerPage, searchTerm, refreshKey]);
+    fetchApplications();
+  }, [currentPage, itemsPerPage, debouncedSearchTerm, refreshKey]);
 
   // Close actions dropdown on click outside
   useEffect(() => {

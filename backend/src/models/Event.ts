@@ -17,11 +17,11 @@ export interface IEvent extends Document {
   event_year: number;
   start_date: Date;
   end_date: Date;
-  application_start_date: Date;
-  application_end_date: Date;
-  status: 'draft' | 'published' | 'completed' | 'archived' | 'active' | 'closed';
-  is_active: boolean;
-  email_settings: IEmailSettings;
+  application_start_date?: Date;
+  application_end_date?: Date;
+  status: 'Active' | 'Inactive';
+  is_active?: boolean;
+  email_settings?: IEmailSettings;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,21 +38,21 @@ const emailSettingsSchema = new Schema<IEmailSettings>({
 
 const eventSchema = new Schema<IEvent>(
   {
-    name: { type: String, required: true },
+    name: { type: String, required: true, maxlength: 25 },
     slug: { type: String, required: true, unique: true },
-    description: { type: String, default: '' },
+    description: { type: String, default: '', maxlength: 50 },
     event_year: { type: Number, required: true },
     start_date: { type: Date, required: true },
     end_date: { type: Date, required: true },
-    application_start_date: { type: Date, required: true },
-    application_end_date: { type: Date, required: true },
+    application_start_date: { type: Date, required: false },
+    application_end_date: { type: Date, required: false },
     status: {
       type: String,
-      enum: ['draft', 'published', 'completed', 'archived', 'active', 'closed'],
-      default: 'draft',
+      enum: ['Active', 'Inactive'],
+      default: 'Active',
     },
-    is_active: { type: Boolean, default: true },
-    email_settings: { type: emailSettingsSchema, default: () => ({}) },
+    is_active: { type: Boolean, required: false },
+    email_settings: { type: emailSettingsSchema, required: false },
   },
   {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
