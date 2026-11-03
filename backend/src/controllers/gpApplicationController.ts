@@ -7,6 +7,29 @@ import { UAParser } from 'ua-parser-js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const getFrontendUrl = (req: Request): string => {
+  let origin = '';
+  if (req.headers.origin && typeof req.headers.origin === 'string') {
+    origin = req.headers.origin;
+  } else if (req.headers.referer && typeof req.headers.referer === 'string') {
+    try {
+      origin = new URL(req.headers.referer).origin;
+    } catch {
+      origin = '';
+    }
+  }
+
+  origin = origin.replace(/\/+$/, '');
+  const envUrl = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+
+  // If FRONTEND_URL is localhost or not set, but the request originated from a live domain, use the live domain
+  if ((!envUrl || envUrl.includes('localhost')) && origin && !origin.includes('localhost')) {
+    return origin;
+  }
+
+  return envUrl || origin || 'http://localhost:3000';
+};
+
 export const createGpApplication = async (req: Request, res: Response) => {
   try {
     const { firstName, lastName, email, company, event } = req.body;
@@ -63,7 +86,7 @@ export const createGpApplication = async (req: Request, res: Response) => {
     }
 
     const magic_token = crypto.randomBytes(32).toString('hex');
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = getFrontendUrl(req);
     const magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
 
     const eventName = eventDetails.name;
@@ -441,20 +464,21 @@ export const resendMagicLink = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'GP Application not found' });
     }
 
-    let { magic_token, magic_link, email, first_name } = application;
+    let { magic_token, email, first_name } = application;
     const eventObj = Array.isArray(application.events) ? application.events[0] : application.events;
     const eventName = eventObj?.name || 'the event';
 
-    if (!magic_token || !magic_link) {
+    if (!magic_token) {
       magic_token = crypto.randomBytes(32).toString('hex');
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
-
-      await supabase
-        .from('gp_applications')
-        .update({ magic_token, magic_link })
-        .eq('id', id);
     }
+
+    const frontendUrl = getFrontendUrl(req);
+    const magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
+
+    await supabase
+      .from('gp_applications')
+      .update({ magic_token, magic_link })
+      .eq('id', id);
 
     try {
       const { subject, text, html } = getMagicLinkEmailTemplate(first_name, eventName, magic_link);

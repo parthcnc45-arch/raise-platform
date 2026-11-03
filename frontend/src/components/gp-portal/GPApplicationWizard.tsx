@@ -163,7 +163,7 @@ export default function GPApplicationWizard({ applicantName, company, email, onG
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-5xl space-y-6 text-slate-900">
+      <div className="w-full space-y-6 text-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium text-slate-500">RAISE Partner Workspace <span className="mx-1.5 text-slate-300">/</span> My Application</p><h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Application Submitted</h1></div><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">Complete</span></div>
         <section className="rounded-2xl border border-slate-200/90 bg-white px-5 py-8 text-center shadow-sm sm:px-10">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"><Check className="h-7 w-7" strokeWidth={3} /></span>
@@ -186,7 +186,7 @@ export default function GPApplicationWizard({ applicantName, company, email, onG
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="w-full">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div><p className="text-xs font-medium text-slate-500">RAISE Partner Workspace <span className="mx-1.5 text-slate-300">/</span> My Application</p><h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">My Application</h1><p className="mt-1 text-sm text-slate-500">Complete your firm profile and application details.</p></div>
         <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600"><Save className="h-4 w-4 text-blue-600" /> Draft preview</span>
