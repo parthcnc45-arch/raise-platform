@@ -20,7 +20,7 @@ export const login = async (req: Request, res: Response) => {
     // Fetch user from Supabase with joined role
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, name, email, password, role_id, is_active, phone, avatar, created_at, updated_at, role:roles!role_id(id, name, code, permissions)')
+      .select('id, name, email, password, role_id, is_active, phone, avatar, created_at, updated_at, role:roles!role_id(id, name, code)')
       .eq('email', normalizedEmail)
       .maybeSingle();
 

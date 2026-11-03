@@ -63,6 +63,10 @@ app.use('/events', eventRoutes);
 app.use('/api/v1/gp-applications', gpApplicationRoutes);
 app.use('/gp-applications', gpApplicationRoutes);
 
+import roleRoutes from './routes/roleRoutes.js';
+app.use('/api/v1/roles', roleRoutes);
+app.use('/roles', roleRoutes);
+
 // Health Check
 app.get(['/api/v1/health', '/health'], async (_req, res) => {
   try {
@@ -84,23 +88,6 @@ app.get(['/api/v1/health', '/health'], async (_req, res) => {
   }
 });
 
-// Roles endpoint
-app.get(['/api/v1/roles', '/roles'], async (_req, res) => {
-  try {
-    const { data: roles, error } = await supabase
-      .from('roles')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      throw error;
-    }
-
-    res.json({ success: true, count: roles?.length || 0, data: roles });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error?.message || 'Failed to fetch roles' });
-  }
-});
 
 app.get(['/api/v1/applications', '/applications'], (_req, res) => {
   res.json({ success: true, data: [], message: 'Applications endpoint ready' });

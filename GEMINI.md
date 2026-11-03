@@ -43,3 +43,11 @@ Both `frontend` and `backend` are designed to be deployed completely independent
 - Frontend communicates with backend via REST API (`NEXT_PUBLIC_API_URL`).
 - Backend controls access via CORS using `FRONTEND_URL`.
 
+---
+
+## 3. Git Commit & Push Policy (STRICT RULE)
+- **NEVER run `git commit` or `git push` automatically after completing tasks.**
+- Always keep changes local and show them to the user for review.
+- Only execute `git commit` or `git push` when the user explicitly instructs: e.g. "commit કરી આપો" or "push કરો".
+
+

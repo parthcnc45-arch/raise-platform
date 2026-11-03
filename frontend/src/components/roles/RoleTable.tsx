@@ -17,18 +17,14 @@ import {
   Search,
   RefreshCw,
   ShieldCheck,
-  Shield,
   CheckCircle2,
-  Lock,
+  XCircle,
 } from "lucide-react";
 
 interface RoleData {
   id: string;
   name: string;
   code: string;
-  description?: string;
-  permissions?: string[];
-  is_system?: boolean;
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -66,14 +62,13 @@ export default function RoleTable() {
     fetchRoles();
   }, [refreshKey]);
 
-  // Client-side search filtering
+  // Client-side search filtering by name or code
   const filteredRoles = roles.filter((role) => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase().trim();
     return (
       role.name?.toLowerCase().includes(term) ||
-      role.code?.toLowerCase().includes(term) ||
-      role.description?.toLowerCase().includes(term)
+      role.code?.toLowerCase().includes(term)
     );
   });
 
@@ -87,14 +82,13 @@ export default function RoleTable() {
   const summary = {
     total: roles.length,
     active: roles.filter((r) => r.is_active !== false).length,
-    system: roles.filter((r) => r.is_system).length,
-    custom: roles.filter((r) => !r.is_system).length,
+    inactive: roles.filter((r) => r.is_active === false).length,
   };
 
   return (
     <div className="flex flex-1 flex-col space-y-6">
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="flex items-center gap-4 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <ShieldCheck className="h-6 w-6" />
@@ -102,16 +96,6 @@ export default function RoleTable() {
           <div>
             <p className="text-xs font-medium text-slate-500">Total Roles</p>
             <h4 className="text-xl font-bold text-slate-900">{summary.total}</h4>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-            <Lock className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500">System Roles</p>
-            <h4 className="text-xl font-bold text-slate-900">{summary.system}</h4>
           </div>
         </div>
 
@@ -127,11 +111,11 @@ export default function RoleTable() {
 
         <div className="flex items-center gap-4 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <Shield className="h-6 w-6" />
+            <XCircle className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500">Custom Roles</p>
-            <h4 className="text-xl font-bold text-slate-900">{summary.custom}</h4>
+            <p className="text-xs font-medium text-slate-500">Inactive Roles</p>
+            <h4 className="text-xl font-bold text-slate-900">{summary.inactive}</h4>
           </div>
         </div>
       </div>
@@ -193,19 +177,16 @@ export default function RoleTable() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="w-16">#</TableHead>
                   <TableHead>Role Name</TableHead>
                   <TableHead>Code</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Permissions</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {!loading && paginatedRoles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-12 text-center text-slate-400">
+                    <TableCell colSpan={4} className="py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <ShieldCheck className="h-8 w-8 text-slate-300" />
                         <p className="text-sm font-medium text-slate-600">No roles found</p>
@@ -226,42 +207,11 @@ export default function RoleTable() {
                           {role.name}
                         </TableCell>
                         <TableCell>
-                          <code className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-700">
+                          <code className="rounded bg-slate-100 px-2.5 py-1 text-xs font-mono font-medium text-slate-700">
                             {role.code}
                           </code>
                         </TableCell>
-                        <TableCell className="text-slate-600 text-sm max-w-xs truncate">
-                          {role.description || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {role.permissions && role.permissions.length > 0 ? (
-                              role.permissions.map((perm, pIdx) => (
-                                <span
-                                  key={pIdx}
-                                  className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700"
-                                >
-                                  {perm === "*" ? "Full Access (*)" : perm}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-slate-400">No specific permissions</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {role.is_system ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
-                              <Lock className="h-3 w-3" />
-                              System
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                              Custom
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Badge variant={isActive ? "success" : "danger"} size="sm">
                             {isActive ? "Active" : "Inactive"}
                           </Badge>

@@ -23,7 +23,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
       // Get user from Supabase
       const { data: user, error } = await supabase
         .from('users')
-        .select('id, name, email, role_id, is_active, phone, avatar, created_at, updated_at, role:roles!role_id(id, name, code, permissions)')
+        .select('id, name, email, role_id, is_active, phone, avatar, created_at, updated_at, role:roles!role_id(id, name, code)')
         .eq('id', decoded.id)
         .single();
 
