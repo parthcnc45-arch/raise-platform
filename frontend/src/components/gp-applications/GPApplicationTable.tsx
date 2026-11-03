@@ -43,7 +43,7 @@ export default function GPApplicationTable() {
   const [summary, setSummary] = useState({
     total: 0,
     pending: 0,
-    successful: 0,
+    sent: 0,
     failed: 0,
   });
 
@@ -204,8 +204,8 @@ export default function GPApplicationTable() {
           setSummary({
             total: result.meta?.totalRecords || list.length,
             pending: list.filter((a: any) => a.status === "pending").length,
-            successful: list.filter((a: any) => a.status === "successful").length,
-            failed: list.filter((a: any) => a.status === "failed" || a.status === "resended").length,
+            sent: list.filter((a: any) => a.status === "successful" || a.status === "resended").length,
+            failed: list.filter((a: any) => a.status === "failed").length,
           });
         }
       } catch (error) {
@@ -247,9 +247,24 @@ export default function GPApplicationTable() {
       case "failed":
         return "danger";
       case "resended":
-        return "warning";
+        return "primary";
       default:
         return "primary";
+    }
+  };
+
+  const formatStatus = (status: string): string => {
+    switch (status?.toLowerCase()) {
+      case "pending":
+        return "Pending";
+      case "successful":
+        return "Invitation Sent";
+      case "resended":
+        return "Link Resent";
+      case "failed":
+        return "Delivery Failed";
+      default:
+        return status || "Pending";
     }
   };
 
@@ -322,7 +337,7 @@ export default function GPApplicationTable() {
             <Clock className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500">Pending Review</p>
+            <p className="text-xs font-medium text-slate-500">Pending</p>
             <h4 className="text-xl font-bold text-slate-900">
               {summary.pending}
             </h4>
@@ -334,9 +349,9 @@ export default function GPApplicationTable() {
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500">Qualified / Successful</p>
+            <p className="text-xs font-medium text-slate-500">Invitations Sent</p>
             <h4 className="text-xl font-bold text-slate-900">
-              {summary.successful}
+              {summary.sent}
             </h4>
           </div>
         </div>
@@ -346,7 +361,7 @@ export default function GPApplicationTable() {
             <XCircle className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500">Failed / Unqualified</p>
+            <p className="text-xs font-medium text-slate-500">Delivery Failed</p>
             <h4 className="text-xl font-bold text-slate-900">
               {summary.failed}
             </h4>
@@ -416,7 +431,7 @@ export default function GPApplicationTable() {
                 <TableHead>Applicant</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Event</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Invitation Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -451,7 +466,7 @@ export default function GPApplicationTable() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusVariant(app.status)} size="sm">
-                        {app.status || "Pending"}
+                        {formatStatus(app.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

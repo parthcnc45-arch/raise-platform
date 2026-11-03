@@ -37,13 +37,13 @@ export default function ViewGPApplicationModal({
   const formatStatus = (status: string) => {
     switch (status?.toLowerCase()) {
       case "pending":
-        return "Pending Review";
+        return "Pending";
       case "successful":
-        return "Successful";
+        return "Invitation Sent";
       case "failed":
-        return "Failed";
+        return "Delivery Failed";
       case "resended":
-        return "Resended";
+        return "Link Resent";
       default:
         return status || "Pending";
     }
@@ -58,7 +58,7 @@ export default function ViewGPApplicationModal({
       case "failed":
         return "danger";
       case "resended":
-        return "warning";
+        return "primary";
       default:
         return "primary";
     }
@@ -113,7 +113,7 @@ export default function ViewGPApplicationModal({
 
           <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
             <span className="text-xs font-semibold text-slate-500 block mb-1.5">
-              Status
+              Invitation Status
             </span>
             <Badge variant={getStatusVariant(application.status)} size="sm">
               {formatStatus(application.status)}

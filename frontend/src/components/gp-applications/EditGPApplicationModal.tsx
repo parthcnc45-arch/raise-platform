@@ -217,15 +217,15 @@ export default function EditGPApplicationModal({
             </Select>
 
             <Select
-              label="Status"
+              label="Invitation Status"
               name="status"
               value={formData.status}
               onChange={handleChange}
             >
               <option value="pending">Pending</option>
-              <option value="successful">Successful</option>
-              <option value="failed">Failed</option>
-              <option value="resended">Resended</option>
+              <option value="successful">Invitation Sent</option>
+              <option value="resended">Link Resent</option>
+              <option value="failed">Delivery Failed</option>
             </Select>
           </div>
 
