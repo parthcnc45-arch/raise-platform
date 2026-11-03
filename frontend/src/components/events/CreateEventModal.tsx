@@ -137,7 +137,11 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
         window.dispatchEvent(new Event("event-created"));
         onSuccess?.();
       } else {
-        setToast({ id: Date.now(), message: data.message || "Failed to create event", type: "error" });
+        const errorMsg = data.message || "Failed to create event";
+        setToast({ id: Date.now(), message: errorMsg, type: "error" });
+        if (errorMsg.toLowerCase().includes("overlap")) {
+          setErrors((prev) => ({ ...prev, start_date: errorMsg }));
+        }
       }
     } catch (error: any) {
       setToast({ id: Date.now(), message: error?.message || "An error occurred while creating the event", type: "error" });

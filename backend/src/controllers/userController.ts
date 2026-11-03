@@ -1,28 +1,31 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import User from '../models/User.js';
-import Role from '../models/Role.js';
+import bcrypt from 'bcryptjs';
+import { supabase } from '../config/supabase.js';
 import { AuthRequest } from '../middleware/authMiddleware.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Helper to resolve role by ObjectId, code, or name
+// Helper to resolve role by UUID, code, or name
 const resolveRole = async (roleInput: any) => {
   if (!roleInput) return null;
 
-  if (mongoose.Types.ObjectId.isValid(roleInput)) {
-    const roleDoc = await Role.findById(roleInput);
+  if (typeof roleInput === 'string' && UUID_REGEX.test(roleInput)) {
+    const { data: roleDoc } = await supabase
+      .from('roles')
+      .select('*')
+      .eq('id', roleInput)
+      .maybeSingle();
     if (roleDoc) return roleDoc;
   }
 
   if (typeof roleInput === 'string') {
     const trimmed = roleInput.trim();
-    const roleDoc = await Role.findOne({
-      $or: [
-        { code: trimmed.toLowerCase() },
-        { name: { $regex: new RegExp(`^${trimmed}$`, 'i') } },
-      ],
-    });
+    const { data: roleDoc } = await supabase
+      .from('roles')
+      .select('*')
+      .or(`code.eq.${trimmed.toLowerCase()},name.ilike.${trimmed}`)
+      .maybeSingle();
     if (roleDoc) return roleDoc;
   }
 
@@ -35,38 +38,45 @@ export const getUsers = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const search = (req.query.search as string) || '';
 
-    const query: any = {};
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit - 1;
 
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-      ];
+    let query = supabase
+      .from('users')
+      .select('id, name, email, is_active, phone, created_at, role:roles!role_id(id, name, code)', { count: 'exact' });
+
+    if (search.trim()) {
+      query = query.or(`name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`);
     }
 
-    const startIndex = (page - 1) * limit;
+    const { data: users, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(startIndex, endIndex);
 
-    const totalRecords = await User.countDocuments(query);
+    if (error) {
+      console.error('Error fetching users from Supabase:', error);
+      return res.status(500).json({ success: false, message: error.message || 'Failed to fetch users' });
+    }
+
+    const totalRecords = count || 0;
     const totalPages = Math.ceil(totalRecords / limit);
 
-    const users = await User.find(query)
-      .populate({ path: 'role', select: 'name code' })
-      .skip(startIndex)
-      .limit(limit)
-      .sort({ createdAt: -1 });
-
-    const formattedUsers = users.map((user: any) => ({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role?.name || 'User',
-      roleCode: user.role?.code || '',
-      roleId: user.role?._id || user.role,
-      status: user.isActive ? 'Active' : 'Inactive',
-      isActive: user.isActive,
-      phone: user.phone || '',
-      createdAt: user.createdAt,
-    }));
+    const formattedUsers = (users || []).map((user: any) => {
+      const roleObj = Array.isArray(user.role) ? user.role[0] : user.role;
+      return {
+        id: user.id,
+        _id: user.id,
+        name: user.name,
+        email: user.email,
+        role: roleObj?.name || 'User',
+        roleCode: roleObj?.code || '',
+        roleId: roleObj?.id || '',
+        status: user.is_active ? 'Active' : 'Inactive',
+        isActive: user.is_active,
+        phone: user.phone || '',
+        createdAt: user.created_at,
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -88,16 +98,23 @@ export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    if (typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid user ID format',
       });
     }
 
-    const user = await User.findById(id)
-      .select('-password')
-      .populate({ path: 'role', select: 'name code' });
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, email, is_active, phone, avatar, created_at, updated_at, role:roles!role_id(id, name, code)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user by ID:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
 
     if (!user) {
       return res.status(404).json({
@@ -106,20 +123,24 @@ export const getUserById = async (req: Request, res: Response) => {
       });
     }
 
+    const roleObj = Array.isArray(user.role) ? user.role[0] : user.role;
+
     return res.status(200).json({
       success: true,
       data: {
-        id: user._id,
+        id: user.id,
+        _id: user.id,
         name: user.name,
         email: user.email,
-        role: (user.role as any)?.name || 'User',
-        roleCode: (user.role as any)?.code || '',
-        roleId: (user.role as any)?._id || user.role,
-        status: user.isActive ? 'Active' : 'Inactive',
-        isActive: user.isActive,
+        role: roleObj?.name || 'User',
+        roleCode: roleObj?.code || '',
+        roleId: roleObj?.id || '',
+        status: user.is_active ? 'Active' : 'Inactive',
+        isActive: user.is_active,
         phone: user.phone || '',
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        avatar: user.avatar || '',
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
       },
     });
   } catch (error: any) {
@@ -164,13 +185,6 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
 
-    if (password.length > 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password cannot exceed 8 characters',
-      });
-    }
-
     if (!role) {
       return res.status(400).json({
         success: false,
@@ -188,7 +202,12 @@ export const createUser = async (req: Request, res: Response) => {
 
     // 2. Email uniqueness check
     const normalizedEmail = email.toLowerCase().trim();
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -204,32 +223,48 @@ export const createUser = async (req: Request, res: Response) => {
       userIsActive = String(status).toLowerCase() === 'active';
     }
 
-    // 4. Create user
-    const newUser = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
-      password,
-      role: roleDoc._id,
-      isActive: userIsActive,
-      phone: typeof phone === 'string' ? phone.trim() : '',
-    });
+    // 4. Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    await newUser.populate({ path: 'role', select: 'name code' });
+    // 5. Create user in Supabase
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert({
+        name: name.trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        role_id: roleDoc.id,
+        is_active: userIsActive,
+        phone: typeof phone === 'string' ? phone.trim() : '',
+      })
+      .select('id, name, email, is_active, phone, created_at, role:roles!role_id(id, name, code)')
+      .single();
+
+    if (insertError || !newUser) {
+      console.error('Error inserting user into Supabase:', insertError);
+      return res.status(500).json({
+        success: false,
+        message: insertError?.message || 'Failed to create user',
+      });
+    }
+
+    const roleObj = Array.isArray(newUser.role) ? newUser.role[0] : newUser.role;
 
     return res.status(201).json({
       success: true,
       message: 'User created successfully',
       data: {
-        id: newUser._id,
+        id: newUser.id,
+        _id: newUser.id,
         name: newUser.name,
         email: newUser.email,
-        role: (newUser.role as any)?.name || 'User',
-        roleCode: (newUser.role as any)?.code || '',
-        roleId: (newUser.role as any)?._id || newUser.role,
-        status: newUser.isActive ? 'Active' : 'Inactive',
-        isActive: newUser.isActive,
+        role: roleObj?.name || 'User',
+        roleCode: roleObj?.code || '',
+        roleId: roleObj?.id || '',
+        status: newUser.is_active ? 'Active' : 'Inactive',
+        isActive: newUser.is_active,
         phone: newUser.phone || '',
-        createdAt: newUser.createdAt,
+        createdAt: newUser.created_at,
       },
     });
   } catch (error: any) {
@@ -247,7 +282,7 @@ export const updateUser = async (req: Request, res: Response) => {
     const { name, email, password, role, status, isActive, phone } = req.body;
 
     // 1. Validate ID
-    if (typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid user ID format',
@@ -255,13 +290,22 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     // 2. Check if user exists
-    const user = await User.findById(id);
-    if (!user) {
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError || !existingUser) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
       });
     }
+
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
 
     // 3. Validations & updates for provided fields
     if (name !== undefined) {
@@ -277,7 +321,7 @@ export const updateUser = async (req: Request, res: Response) => {
           message: 'Name must be between 2 and 100 characters',
         });
       }
-      user.name = name.trim();
+      updates.name = name.trim();
     }
 
     if (email !== undefined) {
@@ -288,29 +332,26 @@ export const updateUser = async (req: Request, res: Response) => {
         });
       }
       const normalizedEmail = email.toLowerCase().trim();
-      if (normalizedEmail !== user.email) {
-        const emailExists = await User.findOne({
-          email: normalizedEmail,
-          _id: { $ne: id },
-        });
+      if (normalizedEmail !== existingUser.email) {
+        const { data: emailExists } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', normalizedEmail)
+          .neq('id', id)
+          .maybeSingle();
+
         if (emailExists) {
           return res.status(400).json({
             success: false,
             message: 'Email is already in use by another user',
           });
         }
-        user.email = normalizedEmail;
+        updates.email = normalizedEmail;
       }
     }
 
     if (password !== undefined && password !== '') {
-      if (typeof password !== 'string' || password.length > 8) {
-        return res.status(400).json({
-          success: false,
-          message: 'Password cannot exceed 8 characters',
-        });
-      }
-      user.password = password;
+      updates.password = await bcrypt.hash(password, 10);
     }
 
     if (role !== undefined) {
@@ -321,37 +362,52 @@ export const updateUser = async (req: Request, res: Response) => {
           message: 'Invalid role specified',
         });
       }
-      user.role = roleDoc._id;
+      updates.role_id = roleDoc.id;
     }
 
     if (isActive !== undefined) {
-      user.isActive = Boolean(isActive);
+      updates.is_active = Boolean(isActive);
     } else if (status !== undefined) {
-      user.isActive = String(status).toLowerCase() === 'active';
+      updates.is_active = String(status).toLowerCase() === 'active';
     }
 
     if (phone !== undefined) {
-      user.phone = typeof phone === 'string' ? phone.trim() : '';
+      updates.phone = typeof phone === 'string' ? phone.trim() : '';
     }
 
-    // 4. Save and return updated user
-    await user.save();
-    await user.populate({ path: 'role', select: 'name code' });
+    // 4. Update and return user
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', id)
+      .select('id, name, email, is_active, phone, avatar, updated_at, role:roles!role_id(id, name, code)')
+      .single();
+
+    if (updateError || !updatedUser) {
+      console.error('Error updating user in Supabase:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: updateError?.message || 'Failed to update user',
+      });
+    }
+
+    const roleObj = Array.isArray(updatedUser.role) ? updatedUser.role[0] : updatedUser.role;
 
     return res.status(200).json({
       success: true,
       message: 'User updated successfully',
       data: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: (user.role as any)?.name || 'User',
-        roleCode: (user.role as any)?.code || '',
-        roleId: (user.role as any)?._id || user.role,
-        status: user.isActive ? 'Active' : 'Inactive',
-        isActive: user.isActive,
-        phone: user.phone || '',
-        updatedAt: user.updatedAt,
+        id: updatedUser.id,
+        _id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: roleObj?.name || 'User',
+        roleCode: roleObj?.code || '',
+        roleId: roleObj?.id || '',
+        status: updatedUser.is_active ? 'Active' : 'Inactive',
+        isActive: updatedUser.is_active,
+        phone: updatedUser.phone || '',
+        updatedAt: updatedUser.updated_at,
       },
     });
   } catch (error: any) {
@@ -367,8 +423,8 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    // 1. Validate ObjectId
-    if (typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
+    // 1. Validate UUID
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid user ID format',
@@ -376,16 +432,22 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     }
 
     // 2. Prevent self-deletion
-    if (req.user && req.user._id && req.user._id.toString() === id.toString()) {
+    const currentUserId = req.user?.id || req.user?._id;
+    if (currentUserId && String(currentUserId) === String(id)) {
       return res.status(400).json({
         success: false,
         message: 'You cannot delete your own account',
       });
     }
 
-    // 3. Check if user exists
-    const user = await User.findById(id).populate({ path: 'role', select: 'code' });
-    if (!user) {
+    // 3. Check if user exists with role
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('id, role:roles!role_id(code)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError || !user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -393,12 +455,21 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     }
 
     // 4. Prevent deleting the last Super Admin
-    const userRoleCode = (user.role as any)?.code;
-    if (userRoleCode === 'super_admin') {
-      const superAdminRole = await Role.findOne({ code: 'super_admin' });
+    const roleObj = Array.isArray(user.role) ? user.role[0] : user.role;
+    if (roleObj?.code === 'super_admin') {
+      const { data: superAdminRole } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('code', 'super_admin')
+        .maybeSingle();
+
       if (superAdminRole) {
-        const superAdminCount = await User.countDocuments({ role: superAdminRole._id });
-        if (superAdminCount <= 1) {
+        const { count: superAdminCount } = await supabase
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('role_id', superAdminRole.id);
+
+        if ((superAdminCount || 0) <= 1) {
           return res.status(400).json({
             success: false,
             message: 'Cannot delete the only Super Admin user in the system',
@@ -408,7 +479,18 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     }
 
     // 5. Delete the user
-    await User.findByIdAndDelete(id);
+    const { error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('Error deleting user from Supabase:', deleteError);
+      return res.status(500).json({
+        success: false,
+        message: deleteError.message || 'Failed to delete user',
+      });
+    }
 
     return res.status(200).json({
       success: true,

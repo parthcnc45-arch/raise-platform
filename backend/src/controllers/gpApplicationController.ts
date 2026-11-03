@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import GpApplication from '../models/GpApplication';
-import Event from '../models/Event';
-import { sendEmail } from '../services/emailService';
-import { getMagicLinkEmailTemplate } from '../views/emails/magicLinkEmail';
+import { supabase } from '../config/supabase.js';
+import { sendEmail } from '../services/emailService.js';
+import { getMagicLinkEmailTemplate } from '../views/emails/magicLinkEmail.js';
 import { UAParser } from 'ua-parser-js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const createGpApplication = async (req: Request, res: Response) => {
   try {
@@ -16,12 +17,12 @@ export const createGpApplication = async (req: Request, res: Response) => {
     if (!lastName || lastName.length < 2 || lastName.length > 50) {
       return res.status(400).json({ success: false, message: 'Last name must be between 2 and 50 characters' });
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
       return res.status(400).json({ success: false, message: 'Invalid email address' });
     }
-    
+
     if (!company || company.length < 2 || company.length > 100) {
       return res.status(400).json({ success: false, message: 'Company name must be between 2 and 100 characters' });
     }
@@ -30,12 +31,21 @@ export const createGpApplication = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Event is required' });
     }
 
-    // Check for duplicate application (same email for the same event)
-    const existingApplication = await GpApplication.findOne({ email, event });
-    if (existingApplication) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'You have created application for this event with this email address' 
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check for duplicate application
+    const { data: existingApp } = await supabase
+      .from('gp_applications')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .eq('event_id', event)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (existingApp) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have created application for this event with this email address',
       });
     }
 
@@ -43,38 +53,55 @@ export const createGpApplication = async (req: Request, res: Response) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
 
-    const newApplication = new GpApplication({
-      firstName,
-      lastName,
-      email,
-      company,
-      event,
-      magic_token,
-      magic_link,
-    });
-
-    let savedApplication = await newApplication.save();
-
     // Fetch event name for email
-    const eventDetails = await Event.findById(event);
+    const { data: eventDetails } = await supabase
+      .from('events')
+      .select('name')
+      .eq('id', event)
+      .maybeSingle();
+
     const eventName = eventDetails ? eventDetails.name : 'the event';
 
-    // Send email and update status
+    let initialStatus = 'pending';
     try {
       const { subject, text, html } = getMagicLinkEmailTemplate(firstName, eventName, magic_link);
-      await sendEmail(email, subject, text, html);
-      savedApplication.status = 'successful';
+      await sendEmail(normalizedEmail, subject, text, html);
+      initialStatus = 'successful';
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
-      savedApplication.status = 'failed';
+      initialStatus = 'failed';
     }
-    
-    savedApplication = await savedApplication.save();
+
+    const { data: savedApplication, error: insertError } = await supabase
+      .from('gp_applications')
+      .insert({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: normalizedEmail,
+        company: company.trim(),
+        event_id: event,
+        status: initialStatus,
+        magic_token,
+        magic_link,
+      })
+      .select('*')
+      .single();
+
+    if (insertError || !savedApplication) {
+      console.error('Error inserting GP application:', insertError);
+      return res.status(500).json({ success: false, message: insertError?.message || 'Server error' });
+    }
 
     res.status(201).json({
       success: true,
       message: 'GP Application created successfully',
-      data: savedApplication,
+      data: {
+        ...savedApplication,
+        _id: savedApplication.id,
+        firstName: savedApplication.first_name,
+        lastName: savedApplication.last_name,
+        event: savedApplication.event_id,
+      },
     });
   } catch (error: any) {
     console.error('Error creating GP application:', error);
@@ -88,39 +115,45 @@ export const getGpApplications = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const search = (req.query.search as string) || '';
 
-    const query: any = { deleted_at: null };
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit - 1;
 
-    if (search) {
-      query.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { company: { $regex: search, $options: 'i' } },
-      ];
+    let query = supabase
+      .from('gp_applications')
+      .select('id, first_name, last_name, email, company, status, created_at, event_id, events:event_id(id, name)', { count: 'exact' })
+      .is('deleted_at', null);
+
+    if (search.trim()) {
+      query = query.or(`first_name.ilike.%${search.trim()}%,last_name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%,company.ilike.%${search.trim()}%`);
     }
 
-    const startIndex = (page - 1) * limit;
+    const { data: applications, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(startIndex, endIndex);
 
-    const totalRecords = await GpApplication.countDocuments(query);
+    if (error) {
+      console.error('Error fetching GP applications:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
+    const totalRecords = count || 0;
     const totalPages = Math.ceil(totalRecords / limit);
 
-    const applications = await GpApplication.find(query)
-      .populate('event', 'name')
-      .skip(startIndex)
-      .limit(limit)
-      .sort({ _id: -1 });
-
-    const formattedApplications = applications.map((app: any) => ({
-      id: app._id,
-      firstName: app.firstName,
-      lastName: app.lastName,
-      email: app.email,
-      company: app.company,
-      event: app.event ? app.event.name : 'Unknown Event',
-      eventId: app.event ? app.event._id : null,
-      status: app.status,
-      created_at: app.created_at,
-    }));
+    const formattedApplications = (applications || []).map((app: any) => {
+      const eventObj = Array.isArray(app.events) ? app.events[0] : app.events;
+      return {
+        id: app.id,
+        _id: app.id,
+        firstName: app.first_name,
+        lastName: app.last_name,
+        email: app.email,
+        company: app.company,
+        event: eventObj ? eventObj.name : 'Unknown Event',
+        eventId: eventObj ? eventObj.id : app.event_id,
+        status: app.status,
+        created_at: app.created_at,
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -142,14 +175,30 @@ export const deleteGpApplication = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const application = await GpApplication.findById(id);
-    if (!application) {
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID format' });
+    }
+
+    const { data: application, error: fetchError } = await supabase
+      .from('gp_applications')
+      .select('id')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (fetchError || !application) {
       return res.status(404).json({ success: false, message: 'GP Application not found' });
     }
 
     // Soft delete
-    application.deleted_at = new Date();
-    await application.save();
+    const { error: updateError } = await supabase
+      .from('gp_applications')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (updateError) {
+      return res.status(500).json({ success: false, message: updateError.message });
+    }
 
     res.status(200).json({ success: true, message: 'GP Application deleted successfully' });
   } catch (error: any) {
@@ -163,8 +212,18 @@ export const updateGpApplication = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { firstName, lastName, email, company, event, status } = req.body;
 
-    const application = await GpApplication.findById(id);
-    if (!application || application.deleted_at) {
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID format' });
+    }
+
+    const { data: application, error: fetchError } = await supabase
+      .from('gp_applications')
+      .select('*')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (fetchError || !application) {
       return res.status(404).json({ success: false, message: 'GP Application not found' });
     }
 
@@ -174,14 +233,14 @@ export const updateGpApplication = async (req: Request, res: Response) => {
     if (lastName !== undefined && (typeof lastName !== 'string' || lastName.trim().length < 2 || lastName.trim().length > 50)) {
       return res.status(400).json({ success: false, message: 'Last name must be between 2 and 50 characters' });
     }
-    
+
     if (email !== undefined) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (typeof email !== 'string' || !emailRegex.test(email)) {
         return res.status(400).json({ success: false, message: 'Invalid email address' });
       }
     }
-    
+
     if (company !== undefined && (typeof company !== 'string' || company.trim().length < 2 || company.trim().length > 100)) {
       return res.status(400).json({ success: false, message: 'Company name must be between 2 and 100 characters' });
     }
@@ -190,39 +249,60 @@ export const updateGpApplication = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Event is required' });
     }
 
-    // Check for duplicate application if email or event is changing
+    // Check duplicate if email or event updated
     if (email !== undefined || event !== undefined) {
-      const checkEmail = email !== undefined ? email : application.email;
-      const checkEvent = event !== undefined ? event : application.event;
-      
-      const existingApplication = await GpApplication.findOne({ 
-        email: checkEmail, 
-        event: checkEvent,
-        _id: { $ne: id },
-        deleted_at: null
-      });
-      
-      if (existingApplication) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'You have created application for this event with this email address' 
+      const checkEmail = email !== undefined ? email.toLowerCase().trim() : application.email;
+      const checkEvent = event !== undefined ? event : application.event_id;
+
+      const { data: existingApp } = await supabase
+        .from('gp_applications')
+        .select('id')
+        .eq('email', checkEmail)
+        .eq('event_id', checkEvent)
+        .neq('id', id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (existingApp) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have created application for this event with this email address',
         });
       }
     }
 
-    if (firstName !== undefined) application.firstName = firstName.trim();
-    if (lastName !== undefined) application.lastName = lastName.trim();
-    if (email !== undefined) application.email = email.trim();
-    if (company !== undefined) application.company = company.trim();
-    if (event !== undefined) application.event = event;
-    if (status !== undefined) application.status = status;
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
 
-    const updatedApplication = await application.save();
+    if (firstName !== undefined) updates.first_name = firstName.trim();
+    if (lastName !== undefined) updates.last_name = lastName.trim();
+    if (email !== undefined) updates.email = email.toLowerCase().trim();
+    if (company !== undefined) updates.company = company.trim();
+    if (event !== undefined) updates.event_id = event;
+    if (status !== undefined) updates.status = status;
+
+    const { data: updatedApp, error: updateError } = await supabase
+      .from('gp_applications')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (updateError || !updatedApp) {
+      return res.status(500).json({ success: false, message: updateError?.message || 'Server error' });
+    }
 
     res.status(200).json({
       success: true,
       message: 'GP Application updated successfully',
-      data: updatedApplication,
+      data: {
+        ...updatedApp,
+        _id: updatedApp.id,
+        firstName: updatedApp.first_name,
+        lastName: updatedApp.last_name,
+        event: updatedApp.event_id,
+      },
     });
   } catch (error: any) {
     console.error('Error updating GP application:', error);
@@ -230,15 +310,11 @@ export const updateGpApplication = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// MAGIC LINK CONTROLLERS
-// ==========================================
-
 export const getGpApplicationByMagicToken = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
     const { email } = req.body;
-    
+
     if (!token) {
       return res.status(400).json({ success: false, message: 'Token is required' });
     }
@@ -247,9 +323,14 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
-    const application = await GpApplication.findOne({ magic_token: token, deleted_at: null }).populate('event', 'name');
+    const { data: application, error: fetchError } = await supabase
+      .from('gp_applications')
+      .select('*, events:event_id(name)')
+      .eq('magic_token', token)
+      .is('deleted_at', null)
+      .maybeSingle();
 
-    if (!application) {
+    if (fetchError || !application) {
       return res.status(404).json({ success: false, message: 'Invalid magic link.' });
     }
 
@@ -257,39 +338,45 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
       return res.status(403).json({ success: false, message: 'Email is not valid for this link.' });
     }
 
-    // Capture Access Log
-      try {
-        const userAgentString = req.headers['user-agent'] || '';
-        const parser = new UAParser(userAgentString);
-        const browser = parser.getBrowser();
-        const os = parser.getOS();
-        const device = parser.getDevice();
+    // Capture access log
+    try {
+      const userAgentString = req.headers['user-agent'] || '';
+      const parser = new UAParser(userAgentString);
+      const browser = parser.getBrowser();
+      const os = parser.getOS();
+      const device = parser.getDevice();
 
-        const forwardedIps = req.headers['x-forwarded-for'] as string;
-        const realIp = forwardedIps ? forwardedIps.split(',')[0].trim() : req.ip || req.socket?.remoteAddress || '';
+      const forwardedIps = req.headers['x-forwarded-for'] as string;
+      const realIp = forwardedIps ? forwardedIps.split(',')[0].trim() : req.ip || req.socket?.remoteAddress || '';
 
-        const logEntry = {
-          ip_address: realIp,
-          browser: browser.name ? `${browser.name} ${browser.version || ''}`.trim() : '',
-          os: os.name ? `${os.name} ${os.version || ''}`.trim() : '',
-          device: device.type || device.vendor || device.model ? `${device.vendor || ''} ${device.model || ''} ${device.type || ''}`.trim() : '',
-          accessed_at: new Date(),
-        };
+      const logEntry = {
+        ip_address: realIp,
+        browser: browser.name ? `${browser.name} ${browser.version || ''}`.trim() : '',
+        os: os.name ? `${os.name} ${os.version || ''}`.trim() : '',
+        device: device.type || device.vendor || device.model ? `${device.vendor || ''} ${device.model || ''} ${device.type || ''}`.trim() : '',
+        accessed_at: new Date().toISOString(),
+      };
 
-        if (!application.access_logs) {
-          application.access_logs = [];
-        }
-        application.access_logs.push(logEntry as any);
-        await application.save();
-      } catch (logError) {
-        console.error('Error saving access log:', logError);
-        // We don't want to fail the request if logging fails
-      }
+      const accessLogs = Array.isArray(application.access_logs) ? application.access_logs : [];
+      accessLogs.push(logEntry);
+
+      await supabase
+        .from('gp_applications')
+        .update({ access_logs: accessLogs })
+        .eq('id', application.id);
+    } catch (logError) {
+      console.error('Error saving access log:', logError);
+    }
 
     res.status(200).json({
       success: true,
       message: 'Application loaded successfully.',
-      data: application,
+      data: {
+        ...application,
+        _id: application.id,
+        firstName: application.first_name,
+        lastName: application.last_name,
+      },
     });
   } catch (error: any) {
     console.error('Error fetching application by magic token:', error);
@@ -300,44 +387,62 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
 export const resendMagicLink = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
-    const application = await GpApplication.findById(id).populate('event');
-    
-    if (!application || application.deleted_at) {
+
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID format' });
+    }
+
+    const { data: application, error: fetchError } = await supabase
+      .from('gp_applications')
+      .select('*, events:event_id(name)')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (fetchError || !application) {
       return res.status(404).json({ success: false, message: 'GP Application not found' });
     }
 
-    let { magic_token, magic_link, email, firstName } = application;
-    const eventName = (application.event as any)?.name || 'the event';
+    let { magic_token, magic_link, email, first_name } = application;
+    const eventObj = Array.isArray(application.events) ? application.events[0] : application.events;
+    const eventName = eventObj?.name || 'the event';
 
     if (!magic_token || !magic_link) {
       magic_token = crypto.randomBytes(32).toString('hex');
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
-      
-      application.magic_token = magic_token;
-      application.magic_link = magic_link;
-      await application.save();
+
+      await supabase
+        .from('gp_applications')
+        .update({ magic_token, magic_link })
+        .eq('id', id);
     }
 
-    // Send email and update status
     try {
-      const { subject, text, html } = getMagicLinkEmailTemplate(firstName, eventName, magic_link);
+      const { subject, text, html } = getMagicLinkEmailTemplate(first_name, eventName, magic_link);
       await sendEmail(email, subject, text, html);
-      
-      application.status = 'resended';
-      await application.save();
-      
+
+      await supabase
+        .from('gp_applications')
+        .update({ status: 'resended' })
+        .eq('id', id);
+
       res.status(200).json({
         success: true,
         message: 'Magic link sent successfully',
       });
-    } catch (emailError) {
+    } catch (emailError: any) {
       console.error('Email sending failed during resend:', emailError);
-      application.status = 'failed';
-      await application.save();
-      
-      return res.status(500).json({ success: false, message: 'Failed to send magic link', error: (emailError as any).message });
+      await supabase
+        .from('gp_applications')
+        .update({ status: 'failed' })
+        .eq('id', id);
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send magic link',
+        error: emailError?.message,
+      });
     }
   } catch (error: any) {
     console.error('Error resending magic link:', error);

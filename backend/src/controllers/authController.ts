@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
+import { supabase } from '../config/supabase.js';
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -14,9 +15,23 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user exists and select password (as it might be excluded by default depending on schema config, though in our schema it's not excluded from DB, just toJSON)
-    const user = await User.findOne({ email }).populate('role');
-    
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Fetch user from Supabase with joined role
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, email, password, role_id, is_active, phone, avatar, created_at, updated_at, role:roles!role_id(id, name, code, permissions)')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Supabase query error during login:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Database error occurred during login',
+      });
+    }
+
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -25,16 +40,16 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Check if user is active
-    if (!user.isActive) {
-       return res.status(403).json({
+    if (!user.is_active) {
+      return res.status(403).json({
         success: false,
         message: 'Your account has been deactivated. Please contact support.',
       });
     }
 
     // Compare passwords
-    const isMatch = await user.comparePassword(password);
-    
+    const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -45,14 +60,14 @@ export const login = async (req: Request, res: Response) => {
     // Create JWT Token
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-        console.error("JWT_SECRET is not defined in environment variables!");
-        return res.status(500).json({ success: false, message: 'Internal server error' });
+      console.error('JWT_SECRET is not defined in environment variables!');
+      return res.status(500).json({ success: false, message: 'Internal server error' });
     }
 
     const token = jwt.sign(
-      { 
-        id: user._id, 
-        role: user.role
+      {
+        id: user.id,
+        role: user.role,
       },
       jwtSecret as jwt.Secret,
       {
@@ -60,33 +75,42 @@ export const login = async (req: Request, res: Response) => {
       }
     );
 
-    // Remove password from output (handled by toJSON transform in schema, but good to be explicit or just rely on it)
-    
+    // Format safe user object for response (excluding password)
+    const safeUser = {
+      id: user.id,
+      _id: user.id, // For backwards compatibility with frontend
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      role_id: user.role_id,
+      isActive: user.is_active,
+      is_active: user.is_active,
+      phone: user.phone || '',
+      avatar: user.avatar || '',
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+    };
+
     res.status(200).json({
       success: true,
       message: 'Logged in successfully',
       token,
       data: {
-        user
+        user: safeUser,
       },
     });
-
   } catch (error: any) {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'An error occurred during login',
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-export const logout = async (req: Request, res: Response) => {
+export const logout = async (_req: Request, res: Response) => {
   try {
-    // With localStorage JWT, logout is primarily handled on the client side.
-    // If you were using HttpOnly cookies, you would clear the cookie here.
-    // Example: res.clearCookie('token');
-    
     res.status(200).json({
       success: true,
       message: 'Logged out successfully',
@@ -96,7 +120,7 @@ export const logout = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'An error occurred during logout',
-      error: error.message
+      error: error.message,
     });
   }
 };

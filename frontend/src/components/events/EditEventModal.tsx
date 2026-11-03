@@ -162,7 +162,11 @@ export default function EditEventModal({
         onSuccess();
         onClose();
       } else {
-        setToast({ id: Date.now(), message: data.message || "Failed to update event", type: "error" });
+        const errorMsg = data.message || "Failed to update event";
+        setToast({ id: Date.now(), message: errorMsg, type: "error" });
+        if (errorMsg.toLowerCase().includes("overlap")) {
+          setErrors((prev) => ({ ...prev, start_date: errorMsg }));
+        }
       }
     } catch (error: any) {
       setToast({ id: Date.now(), message: error?.message || "An error occurred while updating the event", type: "error" });
