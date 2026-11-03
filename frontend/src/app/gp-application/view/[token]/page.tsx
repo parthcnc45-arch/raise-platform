@@ -58,6 +58,9 @@ function MagicLinkVerifyContent() {
 
       if (data?.success) {
         localStorage.setItem(`magic_email_${token}`, email.trim());
+        if (data.data) {
+          localStorage.setItem(`magic_application_${token}`, JSON.stringify(data.data));
+        }
         router.push(`/gp-application/details/${token}`);
       } else {
         setError(data?.message || "Invalid magic link or email address.");

@@ -373,6 +373,7 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
     }
 
     const loadedApplication = Array.isArray(trackedApplication) ? trackedApplication[0] : trackedApplication;
+    const eventRelation = Array.isArray(application.events) ? application.events[0] : application.events;
 
     // Capture access log
     try {
@@ -412,6 +413,7 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
         _id: loadedApplication.id,
         firstName: loadedApplication.first_name,
         lastName: loadedApplication.last_name,
+        event_name: eventRelation?.name || null,
       },
     });
   } catch (error: any) {
