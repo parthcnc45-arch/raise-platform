@@ -9,6 +9,10 @@ export interface IGpApplication extends Document {
   status: 'pending' | 'successful' | 'failed' | 'resended';
   magic_token?: string;
   magic_link?: string;
+  magic_link_accessed: boolean;
+  magic_link_first_accessed_at: Date | null;
+  magic_link_last_accessed_at: Date | null;
+  magic_link_access_count: number;
   access_logs?: {
     ip_address: string;
     browser: string;
@@ -35,6 +39,10 @@ const gpApplicationSchema = new Schema<IGpApplication>(
     },
     magic_token: { type: String, unique: true, sparse: true },
     magic_link: { type: String },
+    magic_link_accessed: { type: Boolean, default: false },
+    magic_link_first_accessed_at: { type: Date, default: null },
+    magic_link_last_accessed_at: { type: Date, default: null },
+    magic_link_access_count: { type: Number, default: 0 },
     access_logs: [
       {
         ip_address: { type: String },

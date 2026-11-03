@@ -57,7 +57,7 @@ export default function EditGPApplicationModal({
     if (isOpen) {
       const fetchEvents = async () => {
         try {
-          const res = await apiClient("/events?limit=100");
+          const res = await apiClient("/events?limit=100&activeOnly=true");
           const result = await res.json();
           if (result.success) {
             setEvents(result.data || []);

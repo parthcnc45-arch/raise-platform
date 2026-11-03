@@ -432,13 +432,14 @@ export default function GPApplicationTable() {
                 <TableHead>Email</TableHead>
                 <TableHead>Event</TableHead>
                 <TableHead>Invitation Status</TableHead>
+                <TableHead>Link Access Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {!loading && applications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-12 text-center text-slate-400">
+                  <TableCell colSpan={8} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FileText className="h-8 w-8 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No applications found</p>
@@ -468,6 +469,13 @@ export default function GPApplicationTable() {
                       <Badge variant={getStatusVariant(app.status)} size="sm">
                         {formatStatus(app.status)}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={app.magic_link_accessed ? "success" : "warning"} size="sm">
+                          {app.magic_link_accessed ? "Accessed" : "Not Accessed"}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <button

@@ -28,6 +28,10 @@ export const getEvents = async (req: Request, res: Response) => {
       .from('events')
       .select('*', { count: 'exact' });
 
+    if (req.query.activeOnly === 'true') {
+      query = query.or('status.eq.Active,status.eq.active,is_active.eq.true');
+    }
+
     if (search.trim()) {
       query = query.or(`name.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%`);
     }

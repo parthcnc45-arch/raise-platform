@@ -31,6 +31,19 @@ export const createGpApplication = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Event is required' });
     }
 
+    const { data: eventDetails, error: eventError } = await supabase
+      .from('events')
+      .select('id, name, status, is_active')
+      .eq('id', event)
+      .maybeSingle();
+
+    if (eventError || !eventDetails) {
+      return res.status(400).json({ success: false, message: 'Selected event was not found' });
+    }
+    if (eventDetails.status?.toLowerCase() !== 'active' && eventDetails.is_active !== true) {
+      return res.status(400).json({ success: false, message: 'Applications can only be created for active events' });
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check for duplicate application
@@ -53,14 +66,7 @@ export const createGpApplication = async (req: Request, res: Response) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
 
-    // Fetch event name for email
-    const { data: eventDetails } = await supabase
-      .from('events')
-      .select('name')
-      .eq('id', event)
-      .maybeSingle();
-
-    const eventName = eventDetails ? eventDetails.name : 'the event';
+    const eventName = eventDetails.name;
 
     let initialStatus = 'pending';
     try {
@@ -120,7 +126,7 @@ export const getGpApplications = async (req: Request, res: Response) => {
 
     let query = supabase
       .from('gp_applications')
-      .select('id, first_name, last_name, email, company, status, created_at, event_id, events:event_id(id, name)', { count: 'exact' })
+      .select('id, first_name, last_name, email, company, status, created_at, event_id, magic_link_accessed, magic_link_first_accessed_at, magic_link_last_accessed_at, magic_link_access_count, events:event_id(id, name)', { count: 'exact' })
       .is('deleted_at', null);
 
     if (search.trim()) {
@@ -152,6 +158,10 @@ export const getGpApplications = async (req: Request, res: Response) => {
         eventId: eventObj ? eventObj.id : app.event_id,
         status: app.status,
         created_at: app.created_at,
+        magic_link_accessed: app.magic_link_accessed ?? false,
+        magic_link_first_accessed_at: app.magic_link_first_accessed_at ?? null,
+        magic_link_last_accessed_at: app.magic_link_last_accessed_at ?? null,
+        magic_link_access_count: app.magic_link_access_count ?? 0,
       };
     });
 
@@ -249,6 +259,21 @@ export const updateGpApplication = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Event is required' });
     }
 
+    if (event !== undefined) {
+      const { data: selectedEvent, error: eventError } = await supabase
+        .from('events')
+        .select('id, status, is_active')
+        .eq('id', event)
+        .maybeSingle();
+
+      if (eventError || !selectedEvent) {
+        return res.status(400).json({ success: false, message: 'Selected event was not found' });
+      }
+      if (selectedEvent.status?.toLowerCase() !== 'active' && selectedEvent.is_active !== true) {
+        return res.status(400).json({ success: false, message: 'Applications can only be assigned to active events' });
+      }
+    }
+
     // Check duplicate if email or event updated
     if (email !== undefined || event !== undefined) {
       const checkEmail = email !== undefined ? email.toLowerCase().trim() : application.email;
@@ -338,6 +363,17 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
       return res.status(403).json({ success: false, message: 'Email is not valid for this link.' });
     }
 
+    // Track only after the token and registered email have both been validated.
+    const { data: trackedApplication, error: trackingError } = await supabase
+      .rpc('track_gp_application_magic_link_access', { application_id: application.id });
+
+    if (trackingError || !trackedApplication) {
+      console.error('Error tracking GP application magic link access:', trackingError);
+      return res.status(500).json({ success: false, message: 'Unable to load application. Please try again.' });
+    }
+
+    const loadedApplication = Array.isArray(trackedApplication) ? trackedApplication[0] : trackedApplication;
+
     // Capture access log
     try {
       const userAgentString = req.headers['user-agent'] || '';
@@ -372,10 +408,10 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
       success: true,
       message: 'Application loaded successfully.',
       data: {
-        ...application,
-        _id: application.id,
-        firstName: application.first_name,
-        lastName: application.last_name,
+        ...loadedApplication,
+        _id: loadedApplication.id,
+        firstName: loadedApplication.first_name,
+        lastName: loadedApplication.last_name,
       },
     });
   } catch (error: any) {
