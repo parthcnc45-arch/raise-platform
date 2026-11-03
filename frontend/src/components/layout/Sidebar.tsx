@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronDown,
   Shield,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -31,14 +32,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const pathname = usePathname();
 
   const isUsersActive = pathname.startsWith("/users");
-  const [isAdminExpanded, setIsAdminExpanded] = useState(isUsersActive);
+  const isRolesActive = pathname.startsWith("/roles");
+  const isAdminActive = isUsersActive || isRolesActive;
+  const [isAdminExpanded, setIsAdminExpanded] = useState(isAdminActive);
 
-  // Automatically expand Administration when Users route is active
+  // Automatically expand Administration when Users or Roles route is active
   useEffect(() => {
-    if (isUsersActive) {
+    if (isAdminActive) {
       setIsAdminExpanded(true);
     }
-  }, [isUsersActive]);
+  }, [isAdminActive]);
 
   const navItems = [
     {
@@ -155,11 +158,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all cursor-pointer",
-                  !isOpen && isUsersActive
+                  !isOpen && isAdminActive
                     ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/25"
-                    : isUsersActive && !isAdminExpanded
+                    : isAdminActive && !isAdminExpanded
                     ? "bg-blue-50 text-blue-600 font-semibold"
-                    : isUsersActive
+                    : isAdminActive
                     ? "text-slate-800 font-medium hover:bg-slate-100"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
                   !isOpen && "justify-center px-2"
@@ -170,9 +173,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Shield
                   className={cn(
                     "h-5 w-5 shrink-0 transition-colors",
-                    !isOpen && isUsersActive
+                    !isOpen && isAdminActive
                       ? "text-white"
-                      : isUsersActive
+                      : isAdminActive
                       ? "text-blue-600"
                       : "text-slate-400 group-hover:text-slate-700"
                   )}
@@ -190,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
               </button>
 
-              {/* Submenu (Users) */}
+              {/* Submenu (Users & Roles) */}
               {isOpen && isAdminExpanded && (
                 <div className="mt-1 space-y-1 pl-4">
                   <Link
@@ -211,6 +214,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     />
                     <span>Users</span>
+                  </Link>
+
+                  <Link
+                    href="/roles"
+                    onClick={() => setIsMobileOpen(false)}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
+                      isRolesActive
+                        ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/25"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                    title="Roles"
+                  >
+                    <ShieldCheck
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors",
+                        isRolesActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
+                      )}
+                    />
+                    <span>Roles</span>
                   </Link>
                 </div>
               )}
