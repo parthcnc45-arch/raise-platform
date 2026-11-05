@@ -8,9 +8,9 @@ export const globalLimiter = rateLimit({
   standardHeaders: true, // Return standard RateLimit headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
   skip: (req: Request) => {
-    // Do not rate limit health check endpoints
+    // Do not rate limit health check or keep-alive ping endpoints
     const path = req.originalUrl || req.url || '';
-    return path.includes('/health');
+    return path.includes('/health') || path.includes('/ping');
   },
   message: {
     success: false,

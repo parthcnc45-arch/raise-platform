@@ -64,8 +64,18 @@ app.use('/api/v1/gp-applications', gpApplicationRoutes);
 app.use('/gp-applications', gpApplicationRoutes);
 
 import roleRoutes from './routes/roleRoutes.js';
+import { startKeepAliveService } from './services/keepAliveService.js';
 app.use('/api/v1/roles', roleRoutes);
 app.use('/roles', roleRoutes);
+
+// Keep-Alive Ping (Ultra-lightweight endpoint, no DB query)
+app.get(['/api/v1/ping', '/ping'], (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'pong',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Health Check
 app.get(['/api/v1/health', '/health'], async (_req, res) => {
@@ -121,6 +131,7 @@ async function startServer() {
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 RAISE API running on http://localhost:${PORT}`);
+      startKeepAliveService();
     });
 
     const gracefulShutdown = async (signal: string) => {
