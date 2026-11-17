@@ -48,6 +48,21 @@ Both `frontend` and `backend` are designed to be deployed completely independent
 ## 3. Git Commit & Push Policy (STRICT RULE)
 - **NEVER run `git commit` or `git push` automatically after completing tasks.**
 - Always keep changes local and show them to the user for review.
-- Only execute `git commit` or `git push` when the user explicitly instructs: e.g. "commit કરી આપો" or "push કરો".
+- Only execute `git commit` or `git push` when the user explicitly instructs to do so (e.g. "commit the changes", "push to github", etc.).
+
+---
+
+## 4. Supabase Security & Service Role Key Policy (CRITICAL RULE)
+- **NEVER use or expose `SUPABASE_SERVICE_ROLE_KEY` in the Frontend (`/frontend`).**
+- The `service_role` key has full administrator rights and bypasses Row Level Security (RLS). Putting it in frontend code or in `NEXT_PUBLIC_*` environment variables exposes full database access to the public.
+- The Frontend must strictly communicate with the Backend API via `NEXT_PUBLIC_API_URL` (`apiClient`).
+- All Supabase SDK calls using `SUPABASE_SERVICE_ROLE_KEY` must exclusively live within the `/backend` service.
+
+---
+
+## 5. Strict English Language Policy (STRICT RULE)
+- **All code files, configuration files, comments, and project documentation must be strictly written in English.**
+- NEVER use Gujarati or any other regional languages in project files, code, comments, commit messages, or markdown documents.
+- Keep all internal code comments, variable names, and documentation exclusively in clear English.
 
 

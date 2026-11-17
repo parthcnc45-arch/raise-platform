@@ -1,58 +1,62 @@
-import Role, { IRole } from '../models/Role.js';
+import { supabase } from '../config/supabase.js';
+import { Role } from '../types/role.js';
 
 export const DEFAULT_ROLES = [
   {
     name: 'Super Admin',
     code: 'super_admin',
-    description: 'Full system access with all administrative privileges',
-    permissions: ['*'],
-    isSystem: true,
-    isActive: true,
+    is_system: true,
+    is_active: true,
   },
   {
     name: 'Admin',
     code: 'admin',
-    description: 'Administrative access to manage users and applications',
-    permissions: ['manage_users', 'view_reports', 'manage_applications'],
-    isSystem: true,
-    isActive: true,
+    is_system: true,
+    is_active: true,
   },
   {
     name: 'User',
     code: 'user',
-    description: 'Standard platform user access',
-    permissions: ['view_profile', 'submit_applications'],
-    isSystem: true,
-    isActive: true,
+    is_system: true,
+    is_active: true,
   },
 ];
 
-export async function seedRoles(): Promise<Map<string, IRole>> {
+export async function seedRoles(): Promise<Map<string, Role>> {
   try {
-    const roleMap = new Map<string, IRole>();
+    const roleMap = new Map<string, Role>();
 
     for (const roleData of DEFAULT_ROLES) {
-      const role = await Role.findOneAndUpdate(
-        { code: roleData.code },
-        {
-          $setOnInsert: {
-            name: roleData.name,
-            code: roleData.code,
-            description: roleData.description,
-            permissions: roleData.permissions,
-            isSystem: roleData.isSystem,
-            isActive: roleData.isActive,
-          },
-        },
-        { upsert: true, returnDocument: 'after' }
-      );
+      // Check if role already exists in Supabase
+      const { data: existingRole, error: fetchError } = await supabase
+        .from('roles')
+        .select('*')
+        .eq('code', roleData.code)
+        .maybeSingle();
 
-      roleMap.set(role.code, role);
+      if (fetchError) {
+        console.error(`[Seed Error] Failed to check role ${roleData.code}:`, fetchError);
+        continue;
+      }
+
+      if (existingRole) {
+        roleMap.set(existingRole.code, existingRole as Role);
+      } else {
+        const { data: newRole, error: insertError } = await supabase
+          .from('roles')
+          .insert(roleData)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error(`[Seed Error] Failed to insert role ${roleData.code}:`, insertError);
+        } else if (newRole) {
+          roleMap.set(newRole.code, newRole as Role);
+        }
+      }
     }
 
-    console.log(
-      `[Seed] Roles verified (${DEFAULT_ROLES.map((r) => r.code).join(', ')})`
-    );
+    console.log(`[Seed] Roles verified (${DEFAULT_ROLES.map((r) => r.code).join(', ')})`);
     return roleMap;
   } catch (error) {
     console.error('[Seed Error] Failed to seed roles:', error);
