@@ -4,34 +4,35 @@ export const getMagicLinkEmailTemplate = (
   magic_link: string,
   deadline?: string
 ) => {
-  const nameDisplay = firstName?.trim() || 'there';
+  const nameDisplay = firstName?.trim() || 'Code';
   const currentEventName = eventName?.trim() || '2026 RAISE Global Summit';
-  const currentDeadline = deadline || 'Thursday, October 22, 2026';
+  const currentDeadline = deadline || 'June 1, 2026';
   const subject = `Your ${currentEventName} GP Application Link`;
 
-  const text = `Hi ${nameDisplay},
+  const text = `${nameDisplay},
 
-Thank you for starting your application for the ${currentEventName}. Your progress is saved automatically, and you can return to your application anytime using your personal link below.
+Your ${currentEventName} GP Application has been created. The personalized link below will allow you to return to this application at any time. Use the link to:
 
-Continue your application here:
+  • Access and complete your application.
+  • Return and complete a partially completed application at a later time.
+  • Update or correct your application.
+
 ${magic_link}
 
-With this link, you can:
-- Complete your application
-- Return to a partially completed application
-- Review and update your responses before submitting
+The deadline for completing this application is ${currentDeadline}. If you have any problems please contact us at community@raiseglobal.co.
 
-Application deadline: ${currentDeadline}
+Thank you for being part of the RAISE Community.
 
-If the link above does not work, copy and paste this URL into your browser:
-${magic_link}
+The RAISE Team
+${currentEventName}
+Thursday, October 22, 2026
+San Francisco, CA
+https://events.raiseglobal.co/event/2026GlobalSummit/Home
 
-This link is unique to you. Please don't share it with others.
+--------------------------------------------------
+This email is intended exclusively for the addressed recipient and may contain privileged and confidential information. Any unauthorized use, distribution, or copying of this email is strictly prohibited. If you have received this email in error, please notify the sender immediately and permanently delete it.
 
-Questions? Contact us at community@raiseglobal.co.
-
-Warm regards,
-The RAISE Team`;
+Nothing in this email constitutes tax, legal, insurance, or investment advice, nor does it represent a solicitation or an offer to buy or sell any security or other financial instrument. Powerlaw Fund Adviser, LLC and Akkadian Ventures, Inc. (collectively, "Akkadian") are registered investment advisers with the Securities and Exchange Commission ("SEC"). Such registration does not imply a specific level of skill or training, nor does it constitute an endorsement of Akkadian by the SEC or any other regulatory agency. Akkadian Ventures, Inc.'s current disclosure brochure, Form ADV Part 2, is provided annually to Akkadian's clients and is also available upon request and on the SEC website: https://adviserinfo.sec.gov.`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -40,137 +41,52 @@ The RAISE Team`;
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Your ${currentEventName} GP Application Link</title>
 </head>
-<body style="margin:0; padding:0; background-color:#f4f5f7; font-family:Arial, Helvetica, sans-serif;">
- 
-  <!-- Preview text (hidden) -->
-<div style="display:none; max-height:0; overflow:hidden; opacity:0;">
-    Your application is saved. Use your personal link to continue anytime before ${currentDeadline}.
-</div>
- 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f5f7;">
-<tr>
-<td align="center" style="padding:32px 16px;">
- 
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%; background-color:#ffffff; border-radius:8px; overflow:hidden;">
- 
-          <!-- Header -->
-<tr>
-<td style="background-color:#1f3a68; padding:28px 40px;">
-<p style="margin:0; font-size:22px; font-weight:bold; color:#ffffff; letter-spacing:0.5px;">RAISE</p>
-<p style="margin:4px 0 0; font-size:13px; color:#c9d4e8;">${currentEventName}</p>
-</td>
-</tr>
- 
-          <!-- Body -->
-<tr>
-<td style="padding:40px 40px 24px;">
-<h1 style="margin:0 0 20px; font-size:22px; line-height:30px; color:#1a1a1a; font-weight:bold;">
-                Your GP application has been created
-</h1>
- 
-              <p style="margin:0 0 16px; font-size:15px; line-height:24px; color:#333333;">
-                Hi ${nameDisplay},
-</p>
- 
-              <p style="margin:0 0 16px; font-size:15px; line-height:24px; color:#333333;">
-                Thank you for starting your application for the <strong>${currentEventName}</strong>. Your progress is saved automatically, and you can return to your application anytime using your personal link below.
-</p>
- 
-              <!-- CTA Button -->
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
-<tr>
-<td align="center" style="background-color:#1f3a68; border-radius:6px;">
-<a href="${magic_link}" target="_blank"
-                       style="display:inline-block; padding:14px 32px; font-size:15px; font-weight:bold; color:#ffffff; text-decoration:none;">
-                      Continue Your Application
-</a>
-</td>
-</tr>
-</table>
- 
-              <p style="margin:0 0 8px; font-size:15px; line-height:24px; color:#333333;">
-                With this link, you can:
-</p>
-<ul style="margin:0 0 24px; padding-left:20px; font-size:15px; line-height:26px; color:#333333;">
-<li>Complete your application</li>
-<li>Return to a partially completed application</li>
-<li>Review and update your responses before submitting</li>
-</ul>
- 
-              <!-- Deadline box -->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
-<tr>
-<td style="background-color:#fff8e6; border-left:4px solid #f0a500; padding:16px 20px; border-radius:4px;">
-<p style="margin:0; font-size:14px; line-height:22px; color:#5c4400;">
-<strong>Application deadline:</strong> ${currentDeadline}
-</p>
-</td>
-</tr>
-</table>
- 
-              <p style="margin:0 0 8px; font-size:13px; line-height:20px; color:#666666;">
-                If the button doesn't work, copy and paste this link into your browser:
-</p>
-<p style="margin:0 0 24px; font-size:13px; line-height:20px; word-break:break-all;">
-<a href="${magic_link}" style="color:#1f5fbf;">${magic_link}</a>
-</p>
- 
-              <p style="margin:0 0 16px; font-size:13px; line-height:20px; color:#666666;">
-<em>This link is unique to you. Please don't share it with others.</em>
-</p>
- 
-              <p style="margin:0 0 24px; font-size:15px; line-height:24px; color:#333333;">
-                Questions? Contact us at
-<a href="mailto:community@raiseglobal.co" style="color:#1f5fbf;">community@raiseglobal.co</a>.
-                We're happy to help.
-</p>
- 
-              <p style="margin:0; font-size:15px; line-height:24px; color:#333333;">
-                Thank you for being part of the RAISE community.
-</p>
-<p style="margin:16px 0 0; font-size:15px; line-height:24px; color:#333333;">
-                Warm regards,<br>
-<strong style="color:#1f3a68;">The RAISE Team</strong>
-</p>
-</td>
-</tr>
- 
-          <!-- Event details -->
-<tr>
-<td style="padding:0 40px 32px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6fa; border-radius:6px;">
-<tr>
-<td style="padding:20px 24px;">
-<p style="margin:0 0 6px; font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; color:#1f3a68;">Event Details</p>
-<p style="margin:0; font-size:14px; line-height:22px; color:#333333;">
-<strong>${currentEventName}</strong><br>
-                      Thursday, October 22, 2026<br>
-                      San Francisco, CA<br>
-<a href="https://events.raiseglobal.co/event/2026GlobalSummit/Home" style="color:#1f5fbf;">View event website</a>
-</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
- 
-          <!-- Footer / Legal -->
-<tr>
-<td style="background-color:#fafafa; border-top:1px solid #e5e5e5; padding:24px 40px;">
-<p style="margin:0 0 12px; font-size:11px; line-height:17px; color:#888888;">
-                This email is intended exclusively for the addressed recipient and may contain privileged and confidential information. Any unauthorized use, distribution, or copying of this email is strictly prohibited. If you have received this email in error, please notify the sender immediately and permanently delete it.
-</p>
-<p style="margin:0; font-size:11px; line-height:17px; color:#888888;">
-                Nothing in this email constitutes tax, legal, insurance, or investment advice, nor does it represent a solicitation or an offer to buy or sell any security or other financial instrument. Powerlaw Fund Adviser, LLC and Akkadian Ventures, Inc. (collectively, "Akkadian") are registered investment advisers with the Securities and Exchange Commission ("SEC"). Such registration does not imply a specific level of skill or training, nor does it constitute an endorsement of Akkadian by the SEC or any other regulatory agency. Akkadian Ventures, Inc.'s current disclosure brochure, Form ADV Part 2, is provided annually to Akkadian's clients and is also available upon request and on the SEC website:
-<a href="https://adviserinfo.sec.gov" style="color:#888888;">adviserinfo.sec.gov</a>.
-</p>
-</td>
-</tr>
- 
-        </table>
-</td>
-</tr>
-</table>
+<body style="margin: 0; padding: 24px 20px; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #222222;">
+  <div style="max-width: 720px; margin: 0;">
+    <p style="margin: 0 0 20px 0; font-size: 14px; color: #222222;">
+      ${nameDisplay},
+    </p>
+
+    <p style="margin: 0 0 16px 0; font-size: 14px; color: #222222;">
+      Your ${currentEventName} GP Application has been created. The personalized link below will allow you to return to this application at any time. Use the link to:
+    </p>
+
+    <ul style="margin: 0 0 24px 0; padding-left: 24px; font-size: 14px; color: #222222; line-height: 1.6;">
+      <li style="margin-bottom: 6px;">Access and complete your application.</li>
+      <li style="margin-bottom: 6px;">Return and complete a partially completed application at a later time.</li>
+      <li style="margin-bottom: 6px;">Update or correct your application.</li>
+    </ul>
+
+    <p style="margin: 0 0 24px 0; font-size: 14px; word-break: break-all;">
+      <a href="${magic_link}" style="color: #1a73e8; text-decoration: underline;">${magic_link}</a>
+    </p>
+
+    <p style="margin: 0 0 20px 0; font-size: 14px; color: #222222;">
+      The deadline for completing this application is ${currentDeadline}. If you have any problems please contact us at <a href="mailto:community@raiseglobal.co" style="color: #1a73e8; text-decoration: underline;">community@raiseglobal.co</a>.
+    </p>
+
+    <p style="margin: 0 0 24px 0; font-size: 14px; color: #222222;">
+      Thank you for being part of the RAISE Community.
+    </p>
+
+    <p style="margin: 0 0 28px 0; font-size: 14px; line-height: 1.5; color: #222222;">
+      <strong style="color: #2b4c7e; font-size: 16px;">The RAISE Team</strong><br />
+      ${currentEventName}<br />
+      Thursday, October 22, 2026<br />
+      San Francisco, CA<br />
+      <a href="https://events.raiseglobal.co/event/2026GlobalSummit/Home" style="color: #1a73e8; text-decoration: underline;">https://events.raiseglobal.co/event/2026GlobalSummit/Home</a>
+    </p>
+
+    <div style="border-top: 1px solid #777777; margin: 30px 0 20px 0; width: 100%;"></div>
+
+    <p style="margin: 0 0 16px 0; font-size: 11px; line-height: 1.5; color: #555555; font-style: italic;">
+      This email is intended exclusively for the addressed recipient and may contain privileged and confidential information. Any unauthorized use, distribution, or copying of this email is strictly prohibited. If you have received this email in error, please notify the sender immediately and permanently delete it.
+    </p>
+
+    <p style="margin: 0; font-size: 11px; line-height: 1.5; color: #555555; font-style: italic;">
+      Nothing in this email constitutes tax, legal, insurance, or investment advice, nor does it represent a solicitation or an offer to buy or sell any security or other financial instrument. Powerlaw Fund Adviser, LLC and Akkadian Ventures, Inc. (collectively, &quot;Akkadian&quot;) are registered investment advisers with the Securities and Exchange Commission (&quot;SEC&quot;). Such registration does not imply a specific level of skill or training, nor does it constitute an endorsement of Akkadian by the SEC or any other regulatory agency. Akkadian Ventures, Inc.'s current disclosure brochure, Form ADV Part 2, is provided annually to Akkadian's clients and is also available upon request and on the SEC website: <a href="https://adviserinfo.sec.gov" style="color: #1a73e8; text-decoration: underline;">https://adviserinfo.sec.gov</a>.
+    </p>
+  </div>
 </body>
 </html>`;
 
