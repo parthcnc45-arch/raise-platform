@@ -30,6 +30,22 @@ const getFrontendUrl = (req: Request): string => {
   return envUrl || origin || 'http://localhost:3000';
 };
 
+const formatDeadline = (dateStr?: string | null): string => {
+  if (!dateStr) return 'June 1, 2026';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'June 1, 2026';
+    return d.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  } catch {
+    return 'June 1, 2026';
+  }
+};
+
 export const createGpApplication = async (req: Request, res: Response) => {
   try {
     const { firstName, lastName, email, company, event } = req.body;
@@ -56,7 +72,7 @@ export const createGpApplication = async (req: Request, res: Response) => {
 
     const { data: eventDetails, error: eventError } = await supabase
       .from('events')
-      .select('id, name, status, is_active')
+      .select('id, name, status, is_active, application_end_date')
       .eq('id', event)
       .maybeSingle();
 
@@ -90,10 +106,11 @@ export const createGpApplication = async (req: Request, res: Response) => {
     const magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
 
     const eventName = eventDetails.name;
+    const deadline = formatDeadline(eventDetails.application_end_date);
 
     let initialStatus = 'pending';
     try {
-      const { subject, text, html } = getMagicLinkEmailTemplate(firstName, eventName, magic_link);
+      const { subject, text, html } = getMagicLinkEmailTemplate(firstName, eventName, magic_link, deadline);
       await sendEmail(normalizedEmail, subject, text, html);
       initialStatus = 'successful';
     } catch (emailError) {
@@ -455,7 +472,7 @@ export const resendMagicLink = async (req: Request, res: Response) => {
 
     const { data: application, error: fetchError } = await supabase
       .from('gp_applications')
-      .select('*, events:event_id(name)')
+      .select('*, events:event_id(name, application_end_date)')
       .eq('id', id)
       .is('deleted_at', null)
       .maybeSingle();
@@ -467,6 +484,7 @@ export const resendMagicLink = async (req: Request, res: Response) => {
     let { magic_token, email, first_name } = application;
     const eventObj = Array.isArray(application.events) ? application.events[0] : application.events;
     const eventName = eventObj?.name || 'the event';
+    const deadline = formatDeadline(eventObj?.application_end_date);
 
     if (!magic_token) {
       magic_token = crypto.randomBytes(32).toString('hex');
@@ -481,7 +499,7 @@ export const resendMagicLink = async (req: Request, res: Response) => {
       .eq('id', id);
 
     try {
-      const { subject, text, html } = getMagicLinkEmailTemplate(first_name, eventName, magic_link);
+      const { subject, text, html } = getMagicLinkEmailTemplate(first_name, eventName, magic_link, deadline);
       await sendEmail(email, subject, text, html);
 
       await supabase

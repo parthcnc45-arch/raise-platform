@@ -30,6 +30,7 @@ interface EventData {
   event_year: number;
   start_date: string;
   end_date: string;
+  application_end_date?: string;
   status: string;
   is_active: boolean;
 }
@@ -375,6 +376,7 @@ export default function EventTable() {
                   <TableHead>Year</TableHead>
                   <TableHead>Start Date</TableHead>
                   <TableHead>End Date</TableHead>
+                  <TableHead>App Deadline</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -382,7 +384,7 @@ export default function EventTable() {
               <TableBody>
                 {!loading && events.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-slate-400">
+                    <TableCell colSpan={7} className="py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Calendar className="h-8 w-8 text-slate-300" />
                         <p className="text-sm font-medium text-slate-600">No events found</p>
@@ -408,6 +410,9 @@ export default function EventTable() {
                         </TableCell>
                         <TableCell className="text-slate-600">
                           {formatDate(event.end_date)}
+                        </TableCell>
+                        <TableCell className="text-slate-600">
+                          {formatDate(event.application_end_date)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={isActive ? "success" : "neutral"} size="sm">

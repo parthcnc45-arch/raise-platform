@@ -22,6 +22,7 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
     event_year: new Date().getFullYear().toString(),
     start_date: "",
     end_date: "",
+    application_end_date: "",
     status: "Active",
   });
 
@@ -37,6 +38,7 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
         event_year: new Date().getFullYear().toString(),
         start_date: "",
         end_date: "",
+        application_end_date: "",
         status: "Active",
       });
       setErrors({});
@@ -120,6 +122,10 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
         end_date: formData.end_date,
         status: formData.status,
       };
+
+      if (formData.application_end_date) {
+        payload.application_end_date = formData.application_end_date;
+      }
 
       if (formData.event_year) {
         payload.event_year = Number(formData.event_year);
@@ -216,6 +222,15 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
+              label="Application Deadline"
+              name="application_end_date"
+              type="date"
+              value={formData.application_end_date}
+              onChange={handleChange}
+              error={errors.application_end_date}
+            />
+
+            <Input
               label="Event Year"
               name="event_year"
               type="number"
@@ -224,19 +239,19 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
               placeholder="e.g. 2027"
               error={errors.event_year}
             />
-
-            <Select
-              label="Status"
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              error={errors.status}
-              required
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </Select>
           </div>
+
+          <Select
+            label="Status"
+            name="status"
+            value={formData.status}
+            onChange={handleChange}
+            error={errors.status}
+            required
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </Select>
 
           <div>
             <div className="flex items-center justify-between mb-1">

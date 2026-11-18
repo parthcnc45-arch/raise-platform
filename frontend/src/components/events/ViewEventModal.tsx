@@ -140,6 +140,16 @@ export default function ViewEventModal({
 
             <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
               <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-1">
+                <Calendar className="h-3.5 w-3.5 text-blue-500" />
+                Application Deadline
+              </span>
+              <p className="text-sm font-semibold text-slate-800">
+                {formatDate(eventData.application_end_date)}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-1">
                 <Clock className="h-3.5 w-3.5 text-slate-400" />
                 Created At
               </span>
