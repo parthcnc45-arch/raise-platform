@@ -8,7 +8,6 @@ export interface Event {
   location?: string;
   status?: string;
   is_active?: boolean;
-  application_start_date?: string;
   application_end_date?: string;
   application_invitation_body?: string;
   created_at?: string;

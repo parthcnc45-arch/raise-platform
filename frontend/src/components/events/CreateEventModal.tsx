@@ -65,6 +65,9 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
           error = "End date cannot be earlier than start date";
         }
         break;
+      case "application_end_date":
+        if (!value) error = "Application deadline is required";
+        break;
       case "event_year":
         if (value) {
           const year = Number(value);
@@ -228,6 +231,7 @@ export default function CreateEventModal({ onSuccess }: CreateEventModalProps) {
               value={formData.application_end_date}
               onChange={handleChange}
               error={errors.application_end_date}
+              required
             />
 
             <Input

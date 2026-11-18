@@ -2,11 +2,11 @@ export const getMagicLinkEmailTemplate = (
   firstName: string,
   eventName: string,
   magic_link: string,
-  deadline?: string
+  deadline: string
 ) => {
-  const nameDisplay = firstName?.trim() || 'Code';
-  const currentEventName = eventName?.trim() || '2026 RAISE Global Summit';
-  const currentDeadline = deadline || 'June 1, 2026';
+  const nameDisplay = firstName?.trim() || 'Not found';
+  const currentEventName = eventName?.trim() || 'Not found';
+  const currentDeadline = deadline;
   const subject = `Your ${currentEventName} GP Application Link`;
 
   const text = `${nameDisplay},

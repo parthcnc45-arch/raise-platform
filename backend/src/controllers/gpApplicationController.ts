@@ -31,10 +31,10 @@ const getFrontendUrl = (req: Request): string => {
 };
 
 const formatDeadline = (dateStr?: string | null): string => {
-  if (!dateStr) return 'June 1, 2026';
+  if (!dateStr) return '';
   try {
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 'June 1, 2026';
+    if (isNaN(d.getTime())) return '';
     return d.toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
@@ -42,7 +42,7 @@ const formatDeadline = (dateStr?: string | null): string => {
       timeZone: 'UTC',
     });
   } catch {
-    return 'June 1, 2026';
+    return '';
   }
 };
 
@@ -111,7 +111,10 @@ export const createGpApplication = async (req: Request, res: Response) => {
     let initialStatus = 'pending';
     try {
       const { subject, text, html } = getMagicLinkEmailTemplate(firstName, eventName, magic_link, deadline);
-      await sendEmail(normalizedEmail, subject, text, html);
+      const emailResult = await sendEmail(normalizedEmail, subject, text, html);
+      if (!emailResult.success) {
+        throw new Error(emailResult.error || 'Failed to send email');
+      }
       initialStatus = 'successful';
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
@@ -500,7 +503,10 @@ export const resendMagicLink = async (req: Request, res: Response) => {
 
     try {
       const { subject, text, html } = getMagicLinkEmailTemplate(first_name, eventName, magic_link, deadline);
-      await sendEmail(email, subject, text, html);
+      const emailResult = await sendEmail(email, subject, text, html);
+      if (!emailResult.success) {
+        throw new Error(emailResult.error || 'Failed to send email');
+      }
 
       await supabase
         .from('gp_applications')

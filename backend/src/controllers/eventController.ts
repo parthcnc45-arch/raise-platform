@@ -58,7 +58,6 @@ export const getEvents = async (req: Request, res: Response) => {
       status: event.status,
       start_date: event.start_date,
       end_date: event.end_date,
-      application_start_date: event.application_start_date,
       application_end_date: event.application_end_date,
       is_active: event.is_active,
       created_at: event.created_at,
@@ -151,6 +150,21 @@ export const createEvent = async (req: Request, res: Response) => {
       });
     }
 
+    if (!application_end_date || typeof application_end_date !== 'string' || !application_end_date.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Application deadline is required',
+      });
+    }
+
+    const parsedAppEndDate = new Date(application_end_date);
+    if (isNaN(parsedAppEndDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format for application_end_date',
+      });
+    }
+
     // 2. Date Overlap check for Active events
     if (matchedStatus === 'Active') {
       const checkEndDate = new Date(parsedEndDate);
@@ -216,14 +230,6 @@ export const createEvent = async (req: Request, res: Response) => {
       counter++;
     }
 
-    let parsedAppEndDate: string | null = null;
-    if (application_end_date) {
-      const d = new Date(application_end_date);
-      if (!isNaN(d.getTime())) {
-        parsedAppEndDate = d.toISOString();
-      }
-    }
-
     // 5. Insert event
     const { data: newEvent, error: insertError } = await supabase
       .from('events')
@@ -234,7 +240,7 @@ export const createEvent = async (req: Request, res: Response) => {
         event_year: parsedYear,
         start_date: parsedStartDate.toISOString(),
         end_date: parsedEndDate.toISOString(),
-        application_end_date: parsedAppEndDate,
+        application_end_date: parsedAppEndDate.toISOString(),
         status: matchedStatus,
         is_active: matchedStatus === 'Active',
       })
@@ -506,18 +512,20 @@ export const updateEvent = async (req: Request, res: Response) => {
     }
 
     if (application_end_date !== undefined) {
-      if (!application_end_date || application_end_date === '') {
-        updates.application_end_date = null;
-      } else {
-        const d = new Date(application_end_date);
-        if (isNaN(d.getTime())) {
-          return res.status(400).json({
-            success: false,
-            message: 'Invalid application_end_date format',
-          });
-        }
-        updates.application_end_date = d.toISOString();
+      if (!application_end_date || typeof application_end_date !== 'string' || !application_end_date.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Application deadline is required',
+        });
       }
+      const d = new Date(application_end_date);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid application_end_date format',
+        });
+      }
+      updates.application_end_date = d.toISOString();
     }
 
     const { data: updatedEvent, error: updateError } = await supabase
