@@ -53,3 +53,19 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     res.status(401).json({ success: false, message: 'Not authorized, no token' });
   }
 };
+
+// Role-based access control: allows only users whose role code is in the given list.
+// Must run after `protect`.
+export const authorize = (...allowedRoleCodes: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    const role = Array.isArray(req.user?.role) ? req.user.role[0] : req.user?.role;
+    const roleCode = typeof role === 'string' ? role : role?.code;
+
+    if (!roleCode || !allowedRoleCodes.includes(roleCode)) {
+      res.status(403).json({ success: false, message: 'You do not have permission to perform this action' });
+      return;
+    }
+
+    next();
+  };
+};

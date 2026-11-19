@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Logo from "@/components/common/Logo";
 import { apiClient } from "@/utils/apiClient";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -74,14 +74,7 @@ export default function SignInForm() {
     <div className="w-full max-w-[420px]">
       {/* Mobile-only logo */}
       <div className="lg:hidden mb-8 text-center">
-        <Image
-          src="/images/logo/logo.png"
-          alt="RAISE"
-          width={150}
-          height={36}
-          priority
-          className="h-8 w-auto mx-auto"
-        />
+        <Logo variant="light" className="h-8 w-auto mx-auto" />
       </div>
 
       {/* Header */}

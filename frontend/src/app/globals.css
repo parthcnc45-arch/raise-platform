@@ -3,6 +3,11 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+
+  /* Brand color override: every Tailwind blue-600 / blue-700 utility uses the RAISE teal.
+     Declared unlayered so it always wins over the generated theme variables. */
+  --color-blue-600: #2d9ab7;
+  --color-blue-700: #258399;
 }
 
 body {

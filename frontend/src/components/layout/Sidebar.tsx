@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import Logo from "@/components/common/Logo";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -88,14 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <Link href="/" className="flex items-center">
             {isOpen ? (
-              <Image
-                src="/images/logo/logo.png"
-                alt="RAISE Platform"
-                width={140}
-                height={36}
-                priority
-                style={{ width: "auto", height: "34px" }}
-              />
+              <Logo variant="light" className="h-[34px] w-auto" />
             ) : (
               <Image
                 src="/images/favicon.ico"

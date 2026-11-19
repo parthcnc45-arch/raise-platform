@@ -2,7 +2,9 @@
 
 import React, { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
-import GPPortalSidebar from "@/components/gp-portal/GPPortalSidebar";
+import { apiClient } from "@/utils/apiClient";
+import GPPortalHeader from "@/components/gp-portal/GPPortalHeader";
+import GPPortalFooter from "@/components/gp-portal/GPPortalFooter";
 import type { GPApplication } from "@/components/gp-portal/types";
 import { GPPortalProvider } from "@/components/gp-portal/GPPortalContext";
 
@@ -30,30 +32,41 @@ function GPPortalLayoutContent({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const savedEmail = localStorage.getItem(`magic_email_${token}`);
-    if (!savedEmail) {
-      router.replace(`/gp-application/view/${token}`);
-      return;
-    }
-
-    const savedApp = localStorage.getItem(`magic_application_${token}`);
-    let parsedApp: GPApplication | null = null;
-    if (savedApp) {
+    // The session lives in an httpOnly cookie, so it is validated by the server.
+    let cancelled = false;
+    (async () => {
       try {
-        parsedApp = JSON.parse(savedApp);
-      } catch {
-        localStorage.removeItem(`magic_application_${token}`);
-      }
-    }
+        // Validates the cookie session AND that the token in the URL belongs to the same application.
+        const res = await apiClient("/gp-applications/session/check", {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        });
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
 
-    setEmail(savedEmail);
-    setApplication(parsedApp);
-    setIsAuthorized(true);
+        if (res.ok && data?.success && data.data) {
+          setEmail(data.data.email || "");
+          setApplication(data.data);
+          setIsAuthorized(true);
+        } else {
+          router.replace(`/gp-application/view/${token}`);
+        }
+      } catch {
+        if (!cancelled) router.replace(`/gp-application/view/${token}`);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token, router]);
 
-  const signOut = () => {
-    localStorage.removeItem(`magic_email_${token}`);
-    localStorage.removeItem(`magic_application_${token}`);
+  const signOut = async () => {
+    try {
+      await apiClient("/gp-applications/session/logout", { method: "POST" });
+    } catch {
+      // Ignore network errors; the redirect below still returns the user to the verification page.
+    }
     router.replace(`/gp-application/view/${token}`);
   };
 
@@ -76,17 +89,18 @@ function GPPortalLayoutContent({ children }: { children: React.ReactNode }) {
         fullName,
       }}
     >
-      <div className="min-h-screen bg-[#f4f7fb] text-slate-900 lg:flex">
-        <GPPortalSidebar
+      <div className="min-h-screen bg-white text-slate-900 flex flex-col">
+        <GPPortalHeader
           fullName={fullName}
           company={application?.company}
           token={token}
           activePage={activePage}
           onSignOut={signOut}
         />
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-7 lg:px-10 lg:py-9">
+        <main className="w-full flex-1">
           {children}
         </main>
+        <GPPortalFooter />
       </div>
     </GPPortalProvider>
   );

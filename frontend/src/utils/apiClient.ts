@@ -26,10 +26,14 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   const response = await fetch(`${API_BASE_URL}${cleanEndpoint}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
+  // GP portal endpoints use their own cookie session and must never trigger the admin sign-out redirect
+  const isGpPortalEndpoint = cleanEndpoint.startsWith('/gp-applications/view/') || cleanEndpoint.startsWith('/gp-applications/session');
+
   // Automatically log out if unauthorized (skip on sign in)
-  if (response.status === 401 && typeof window !== 'undefined' && !cleanEndpoint.includes('/auth/login')) {
+  if (response.status === 401 && typeof window !== 'undefined' && !cleanEndpoint.includes('/auth/login') && !isGpPortalEndpoint) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/signin';

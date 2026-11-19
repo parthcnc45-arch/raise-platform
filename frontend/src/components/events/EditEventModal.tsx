@@ -103,14 +103,17 @@ export default function EditEventModal({
       case "application_end_date":
         if (!value) error = "Application deadline is required";
         break;
-      case "event_year":
-        if (value) {
+      case "event_year": {
+        if (!String(value).trim()) {
+          error = "Event year is required";
+        } else {
           const year = Number(value);
-          if (isNaN(year) || year < 1900 || year > 2100) {
+          if (!Number.isInteger(year) || year < 1900 || year > 2100) {
             error = "Enter a valid 4-digit year";
           }
         }
         break;
+      }
       case "status":
         if (!["Active", "Inactive"].includes(value)) {
           error = "Status must be Active or Inactive";
@@ -260,6 +263,7 @@ export default function EditEventModal({
               onChange={handleChange}
               placeholder="e.g. 2027"
               error={errors.event_year}
+              required
             />
           </div>
 

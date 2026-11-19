@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
+import Logo from "@/components/common/Logo";
 import Link from "next/link";
 import { apiClient } from "@/utils/apiClient";
 import Input from "@/components/ui/Input";
@@ -25,10 +25,24 @@ function MagicLinkVerifyContent() {
       return;
     }
 
-    const savedEmail = localStorage.getItem(`magic_email_${token}`);
-    if (savedEmail) {
-      router.push(`/gp-application/details/${token}`);
-    }
+    // If a valid server-side session already exists for this link, skip the email step.
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient('/gp-applications/session/check', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+        });
+        if (!cancelled && res.ok) {
+          router.replace(`/gp-application/details/${token}`);
+        }
+      } catch {
+        // No active session: show the email form.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [token, router]);
 
   const validate = () => {
@@ -57,10 +71,7 @@ function MagicLinkVerifyContent() {
       const data = await res.json();
 
       if (data?.success) {
-        localStorage.setItem(`magic_email_${token}`, email.trim());
-        if (data.data) {
-          localStorage.setItem(`magic_application_${token}`, JSON.stringify(data.data));
-        }
+        // The server has set an httpOnly session cookie; nothing is stored in the browser.
         router.push(`/gp-application/details/${token}`);
       } else {
         setError(data?.message || "Invalid magic link or email address.");
@@ -93,14 +104,7 @@ function MagicLinkVerifyContent() {
         {/* Top: RAISE Logo */}
         <div className="relative z-10">
           <Link href="/" className="inline-block">
-            <Image
-              src="/images/logo/logo-dark.png"
-              alt="RAISE"
-              width={160}
-              height={38}
-              priority
-              className="h-9 w-auto"
-            />
+            <Logo variant="dark" className="h-9 w-auto" />
           </Link>
         </div>
 
@@ -134,14 +138,7 @@ function MagicLinkVerifyContent() {
         <div className="w-full max-w-[420px]">
           {/* Mobile-only logo */}
           <div className="lg:hidden mb-8 text-center">
-            <Image
-              src="/images/logo/logo.png"
-              alt="RAISE"
-              width={150}
-              height={36}
-              priority
-              className="h-8 w-auto mx-auto"
-            />
+            <Logo variant="light" className="h-8 w-auto mx-auto" />
           </div>
 
           {/* Header */}

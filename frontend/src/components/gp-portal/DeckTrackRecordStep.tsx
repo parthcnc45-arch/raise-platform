@@ -37,7 +37,7 @@ export default function DeckTrackRecordStep({ value, onChange }: DeckTrackRecord
             <div className="flex min-w-0 items-center gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700"><FileText className="h-5 w-5" /></span><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800">{value.deckFileName || "No pitch deck selected"}</p><p className="mt-1 text-[10px] text-slate-500">{value.deckFileName ? "Sample deck · preview only" : "PDF format recommended"}</p></div></div>
             <div className="flex shrink-0 items-center gap-2">
               <input ref={fileInput} type="file" accept=".pdf,application/pdf" onChange={handleFile} className="hidden" />
-              <button type="button" onClick={() => fileInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-[11px] font-semibold text-white hover:bg-blue-800"><Upload className="h-3.5 w-3.5" /> Upload new deck</button>
+              <button type="button" onClick={() => fileInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#2d9ab7] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#258399]"><Upload className="h-3.5 w-3.5" /> Upload new deck</button>
               {value.deckFileName && <button type="button" onClick={() => onChange({ ...value, deckFileName: "" })} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
             </div>
           </div>

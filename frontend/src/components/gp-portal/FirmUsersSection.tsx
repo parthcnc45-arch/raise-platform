@@ -53,7 +53,7 @@ export default function FirmUsersSection({ ownerName, ownerEmail }: { ownerName:
       <section className="flex h-[520px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
           <div><h3 className="text-sm font-bold text-slate-900">Firm users</h3><p className="mt-1 text-xs text-slate-500">Manage who from your firm can work with this application.</p></div>
-          <button type="button" onClick={() => { setInviteError(""); setShowInviteForm(true); }} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"><UserPlus className="h-4 w-4" /> Add firm user</button>
+          <button type="button" onClick={() => { setInviteError(""); setShowInviteForm(true); }} className="inline-flex items-center gap-2 rounded-xl bg-[#2d9ab7] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#258399]"><UserPlus className="h-4 w-4" /> Add firm user</button>
         </div>
         <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
@@ -80,7 +80,7 @@ export default function FirmUsersSection({ ownerName, ownerEmail }: { ownerName:
           <label htmlFor="firm-user-email" className="mt-5 block text-xs font-semibold text-slate-700">Firm user email</label>
           <input id="firm-user-email" type="email" required autoFocus value={inviteEmail} onChange={(event) => { setInviteEmail(event.target.value); if (inviteError) setInviteError(""); }} placeholder="colleague@yourfirm.com" aria-invalid={Boolean(inviteError)} aria-describedby={inviteError ? "firm-user-email-error" : undefined} className={`mt-2 w-full rounded-xl border px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 ${inviteError ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"}`} />
           {inviteError && <p id="firm-user-email-error" className="mt-1.5 text-xs font-medium text-rose-600">{inviteError}</p>}
-          <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setShowInviteForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button><button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-blue-700"><UserPlus className="h-4 w-4" /> Add user</button></div>
+          <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setShowInviteForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button><button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-[#2d9ab7] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#258399]"><UserPlus className="h-4 w-4" /> Add user</button></div>
         </form>
       </div>}
 

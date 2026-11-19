@@ -10,11 +10,13 @@ import Toast from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ViewGPApplicationModal from "./ViewGPApplicationModal";
 import EditGPApplicationModal from "./EditGPApplicationModal";
+import GPApplicationLinkDetailsModal from "./GPApplicationLinkDetailsModal";
 import { apiClient } from "@/utils/apiClient";
 import {
   MoreHorizontal,
   Search,
   Eye,
+  Link2,
   Edit2,
   Send,
   Trash2,
@@ -60,6 +62,7 @@ export default function GPApplicationTable() {
 
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [linkDetailsModalOpen, setLinkDetailsModalOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
 
   const showToast = (message: string, type: "success" | "error") => {
@@ -91,6 +94,14 @@ export default function GPApplicationTable() {
   const triggerView = (app: any) => {
     setSelectedApplication(app);
     setViewModalOpen(true);
+    setOpenDropdown(null);
+    setDropdownCoords(null);
+    setActiveDropdownApp(null);
+  };
+
+  const triggerLinkDetails = (app: any) => {
+    setSelectedApplication(app);
+    setLinkDetailsModalOpen(true);
     setOpenDropdown(null);
     setDropdownCoords(null);
     setActiveDropdownApp(null);
@@ -311,6 +322,12 @@ export default function GPApplicationTable() {
         application={selectedApplication}
       />
 
+      <GPApplicationLinkDetailsModal
+        isOpen={linkDetailsModalOpen}
+        onClose={() => setLinkDetailsModalOpen(false)}
+        application={selectedApplication}
+      />
+
       <EditGPApplicationModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
@@ -433,13 +450,14 @@ export default function GPApplicationTable() {
                 <TableHead>Event</TableHead>
                 <TableHead>Invitation Status</TableHead>
                 <TableHead>Link Access Status</TableHead>
+                <TableHead>Link Details</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {!loading && applications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-12 text-center text-slate-400">
+                  <TableCell colSpan={9} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FileText className="h-8 w-8 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No applications found</p>
@@ -476,6 +494,15 @@ export default function GPApplicationTable() {
                           {app.magic_link_accessed ? "Accessed" : "Not Accessed"}
                         </Badge>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => triggerLinkDetails(app)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Link Details
+                      </button>
                     </TableCell>
                     <TableCell className="text-right">
                       <button

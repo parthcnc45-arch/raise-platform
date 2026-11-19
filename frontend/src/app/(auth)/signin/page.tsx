@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import Logo from "@/components/common/Logo";
 import Link from "next/link";
 import SignInForm from "@/components/auth/SignInForm";
 
@@ -30,14 +30,7 @@ export default function SignInPage() {
         {/* Top: RAISE Logo */}
         <div className="relative z-10">
           <Link href="/" className="inline-block">
-            <Image
-              src="/images/logo/logo-dark.png"
-              alt="RAISE"
-              width={160}
-              height={38}
-              priority
-              className="h-9 w-auto"
-            />
+            <Logo variant="dark" className="h-9 w-auto" />
           </Link>
         </div>
 

@@ -1,34 +1,43 @@
 import { Request, Response } from 'express';
-import crypto from 'crypto';
 import { supabase } from '../config/supabase.js';
 import { sendEmail } from '../services/emailService.js';
 import { getMagicLinkEmailTemplate } from '../views/emails/magicLinkEmail.js';
 import { UAParser } from 'ua-parser-js';
+import {
+  generateMagicToken,
+  hashMagicToken,
+  isValidMagicTokenFormat,
+  buildMagicLink,
+  safeEqual,
+} from '../services/magicLinkService.js';
+import { issueGpSession, clearGpSession, GpSessionRequest } from '../middleware/gpSessionMiddleware.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const getFrontendUrl = (req: Request): string => {
-  let origin = '';
-  if (req.headers.origin && typeof req.headers.origin === 'string') {
-    origin = req.headers.origin;
-  } else if (req.headers.referer && typeof req.headers.referer === 'string') {
-    try {
-      origin = new URL(req.headers.referer).origin;
-    } catch {
-      origin = '';
-    }
-  }
-
-  origin = origin.replace(/\/+$/, '');
-  const envUrl = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
-
-  // If FRONTEND_URL is localhost or not set, but the request originated from a live domain, use the live domain
-  if ((!envUrl || envUrl.includes('localhost')) && origin && !origin.includes('localhost')) {
-    return origin;
-  }
-
-  return envUrl || origin || 'http://localhost:3000';
+// Only whitelisted fields are ever returned to clients (never token hashes, internal flags or access logs).
+const toPublicApplication = (app: any) => {
+  const eventRelation = Array.isArray(app.events) ? app.events[0] : app.events;
+  return {
+    id: app.id,
+    _id: app.id,
+    firstName: app.first_name,
+    lastName: app.last_name,
+    first_name: app.first_name,
+    last_name: app.last_name,
+    email: app.email,
+    company: app.company,
+    event: app.event_id,
+    event_id: app.event_id,
+    event_name: eventRelation?.name || null,
+    status: app.status,
+    created_at: app.created_at,
+    updated_at: app.updated_at,
+  };
 };
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+const GENERIC_VERIFY_ERROR = 'Invalid link or email address.';
 
 const formatDeadline = (dateStr?: string | null): string => {
   if (!dateStr) return '';
@@ -101,9 +110,8 @@ export const createGpApplication = async (req: Request, res: Response) => {
       });
     }
 
-    const magic_token = crypto.randomBytes(32).toString('hex');
-    const frontendUrl = getFrontendUrl(req);
-    const magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
+    const { token: magic_token, hash: magic_token_hash } = generateMagicToken();
+    const magic_link = buildMagicLink(magic_token);
 
     const eventName = eventDetails.name;
     const deadline = formatDeadline(eventDetails.application_end_date);
@@ -130,8 +138,7 @@ export const createGpApplication = async (req: Request, res: Response) => {
         company: company.trim(),
         event_id: event,
         status: initialStatus,
-        magic_token,
-        magic_link,
+        magic_token_hash,
       })
       .select('*')
       .single();
@@ -144,13 +151,7 @@ export const createGpApplication = async (req: Request, res: Response) => {
     res.status(201).json({
       success: true,
       message: 'GP Application created successfully',
-      data: {
-        ...savedApplication,
-        _id: savedApplication.id,
-        firstName: savedApplication.first_name,
-        lastName: savedApplication.last_name,
-        event: savedApplication.event_id,
-      },
+      data: toPublicApplication(savedApplication),
     });
   } catch (error: any) {
     console.error('Error creating GP application:', error);
@@ -364,13 +365,7 @@ export const updateGpApplication = async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       message: 'GP Application updated successfully',
-      data: {
-        ...updatedApp,
-        _id: updatedApp.id,
-        firstName: updatedApp.first_name,
-        lastName: updatedApp.last_name,
-        event: updatedApp.event_id,
-      },
+      data: toPublicApplication(updatedApp),
     });
   } catch (error: any) {
     console.error('Error updating GP application:', error);
@@ -378,32 +373,57 @@ export const updateGpApplication = async (req: Request, res: Response) => {
   }
 };
 
+// Public endpoint: verifies the emailed token + registered email, then starts a server-side session (httpOnly cookie).
 export const getGpApplicationByMagicToken = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
-    const { email } = req.body;
+    const email = req.body?.email;
 
-    if (!token) {
-      return res.status(400).json({ success: false, message: 'Token is required' });
+    // Same generic response for every failure so token validity cannot be probed.
+    if (!isValidMagicTokenFormat(token) || typeof email !== 'string' || !email.trim()) {
+      return res.status(403).json({ success: false, message: GENERIC_VERIFY_ERROR });
     }
 
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
-    }
+    const normalizedEmail = email.toLowerCase().trim();
 
     const { data: application, error: fetchError } = await supabase
       .from('gp_applications')
       .select('*, events:event_id(name)')
-      .eq('magic_token', token)
+      .eq('magic_token_hash', hashMagicToken(token))
       .is('deleted_at', null)
       .maybeSingle();
 
-    if (fetchError || !application) {
-      return res.status(404).json({ success: false, message: 'Invalid magic link.' });
+    if (fetchError) {
+      console.error('Error fetching application by magic token:', fetchError);
+      return res.status(500).json({ success: false, message: 'Server error' });
     }
 
-    if (application.email.toLowerCase() !== email.toLowerCase().trim()) {
-      return res.status(403).json({ success: false, message: 'Email is not valid for this link.' });
+    if (!application) {
+      return res.status(403).json({ success: false, message: GENERIC_VERIFY_ERROR });
+    }
+
+    // Temporary lockout after repeated wrong-email attempts (checked before comparing the email).
+    if (application.magic_link_locked_until && new Date(application.magic_link_locked_until) > new Date()) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many failed attempts. Please try again later.',
+      });
+    }
+
+    if (!safeEqual(String(application.email).toLowerCase(), normalizedEmail)) {
+      const { data: lockedUntil } = await supabase.rpc('record_gp_application_magic_link_failure', {
+        application_id: application.id,
+        max_attempts: MAX_FAILED_ATTEMPTS,
+        lock_minutes: LOCK_MINUTES,
+      });
+
+      if (lockedUntil && new Date(lockedUntil) > new Date()) {
+        return res.status(429).json({
+          success: false,
+          message: 'Too many failed attempts. Please try again later.',
+        });
+      }
+      return res.status(403).json({ success: false, message: GENERIC_VERIFY_ERROR });
     }
 
     // Track only after the token and registered email have both been validated.
@@ -416,7 +436,6 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
     }
 
     const loadedApplication = Array.isArray(trackedApplication) ? trackedApplication[0] : trackedApplication;
-    const eventRelation = Array.isArray(application.events) ? application.events[0] : application.events;
 
     // Capture access log
     try {
@@ -448,21 +467,36 @@ export const getGpApplicationByMagicToken = async (req: Request, res: Response) 
       console.error('Error saving access log:', logError);
     }
 
+    issueGpSession(res, { id: application.id, magic_token_hash: application.magic_token_hash });
+
     res.status(200).json({
       success: true,
       message: 'Application loaded successfully.',
-      data: {
-        ...loadedApplication,
-        _id: loadedApplication.id,
-        firstName: loadedApplication.first_name,
-        lastName: loadedApplication.last_name,
-        event_name: eventRelation?.name || null,
-      },
+      data: toPublicApplication({ ...loadedApplication, events: application.events }),
     });
   } catch (error: any) {
     console.error('Error fetching application by magic token:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
+};
+
+// Session endpoints (protected by requireGpSession)
+export const getGpSession = async (req: GpSessionRequest, res: Response) => {
+  res.status(200).json({ success: true, data: toPublicApplication(req.gpApplication) });
+};
+
+// Checks that the current session belongs to the application that the given magic token points to.
+export const checkGpSessionForToken = async (req: GpSessionRequest, res: Response) => {
+  const token = req.body?.token;
+  if (!isValidMagicTokenFormat(token) || !safeEqual(hashMagicToken(token), String(req.gpApplication.magic_token_hash))) {
+    return res.status(403).json({ success: false, message: 'Session does not match this link.' });
+  }
+  res.status(200).json({ success: true, data: toPublicApplication(req.gpApplication) });
+};
+
+export const logoutGpSession = async (_req: Request, res: Response) => {
+  clearGpSession(res);
+  res.status(200).json({ success: true, message: 'Signed out' });
 };
 
 export const resendMagicLink = async (req: Request, res: Response) => {
@@ -484,22 +518,15 @@ export const resendMagicLink = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'GP Application not found' });
     }
 
-    let { magic_token, email, first_name } = application;
+    const { email, first_name } = application;
     const eventObj = Array.isArray(application.events) ? application.events[0] : application.events;
     const eventName = eventObj?.name || 'the event';
     const deadline = formatDeadline(eventObj?.application_end_date);
 
-    if (!magic_token) {
-      magic_token = crypto.randomBytes(32).toString('hex');
-    }
-
-    const frontendUrl = getFrontendUrl(req);
-    const magic_link = `${frontendUrl}/gp-application/view/${magic_token}`;
-
-    await supabase
-      .from('gp_applications')
-      .update({ magic_token, magic_link })
-      .eq('id', id);
+    // Only the hash is stored, so a resend always issues a brand new token.
+    // The old link (and any session created from it) stops working once the new email is sent.
+    const { token: newToken, hash: newHash } = generateMagicToken();
+    const magic_link = buildMagicLink(newToken);
 
     try {
       const { subject, text, html } = getMagicLinkEmailTemplate(first_name, eventName, magic_link, deadline);
@@ -507,16 +534,6 @@ export const resendMagicLink = async (req: Request, res: Response) => {
       if (!emailResult.success) {
         throw new Error(emailResult.error || 'Failed to send email');
       }
-
-      await supabase
-        .from('gp_applications')
-        .update({ status: 'resended' })
-        .eq('id', id);
-
-      res.status(200).json({
-        success: true,
-        message: 'Magic link sent successfully',
-      });
     } catch (emailError: any) {
       console.error('Email sending failed during resend:', emailError);
       await supabase
@@ -527,11 +544,72 @@ export const resendMagicLink = async (req: Request, res: Response) => {
       return res.status(500).json({
         success: false,
         message: 'Failed to send magic link',
-        error: emailError?.message,
       });
     }
+
+    const { error: updateError } = await supabase
+      .from('gp_applications')
+      .update({
+        magic_token_hash: newHash,
+        magic_link_failed_attempts: 0,
+        magic_link_locked_until: null,
+        status: 'resended',
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('Error saving rotated magic token:', updateError);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Magic link sent successfully',
+    });
   } catch (error: any) {
     console.error('Error resending magic link:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Admin: full database record of an application (every column except the token hash, which is never exposed).
+export const getGpApplicationDetails = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID format' });
+    }
+
+    const { data: application, error } = await supabase
+      .from('gp_applications')
+      .select('*, events:event_id(name)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching GP application details:', error);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'GP Application not found' });
+    }
+
+    const { magic_token_hash, events, ...record } = application as Record<string, any>;
+    const eventRelation = Array.isArray(events) ? events[0] : events;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...record,
+        event_name: eventRelation?.name || null,
+        // Only tells the admin that a token exists; the hash itself never leaves the server.
+        has_magic_token: Boolean(magic_token_hash),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error fetching GP application details:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

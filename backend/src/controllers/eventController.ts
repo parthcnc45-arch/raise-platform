@@ -192,9 +192,19 @@ export const createEvent = async (req: Request, res: Response) => {
     }
 
     // 3. Event Year
-    let parsedYear = Number(event_year);
-    if (!event_year || isNaN(parsedYear) || parsedYear < 1900 || parsedYear > 2100) {
-      parsedYear = parsedStartDate.getFullYear();
+    const parsedYear = Number(event_year);
+    if (
+      event_year === undefined ||
+      event_year === null ||
+      String(event_year).trim() === '' ||
+      !Number.isInteger(parsedYear) ||
+      parsedYear < 1900 ||
+      parsedYear > 2100
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Event year is required and must be a valid 4-digit year',
+      });
     }
 
     // 4. Slug generation

@@ -35,3 +35,19 @@ export const authLimiter = rateLimit({
     res.status(options.statusCode).json(options.message);
   },
 });
+
+// Dedicated limiter for magic link verification (POST /gp-applications/view/:token).
+// Complements the per-application lockout stored in the database.
+export const magicLinkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes window
+  limit: 20, // Max 20 verification attempts per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many verification attempts. Please try again later.',
+  },
+  handler: (_req: Request, res: Response, _next, options) => {
+    res.status(options.statusCode).json(options.message);
+  },
+});

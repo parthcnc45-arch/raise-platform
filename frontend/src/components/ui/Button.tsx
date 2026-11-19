@@ -25,7 +25,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary:
-        "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm",
+        "bg-[#2d9ab7] text-white hover:bg-[#258399] focus:ring-[#2d9ab7] shadow-sm",
       secondary:
         "bg-slate-100 text-slate-800 hover:bg-slate-200 focus:ring-slate-400",
       outline:
@@ -35,7 +35,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ghost:
         "bg-transparent text-slate-600 hover:bg-slate-100",
       dark:
-        "bg-[#0b1727] text-white hover:bg-[#16273d] focus:ring-slate-900 shadow-sm",
+        "bg-[#2d9ab7] text-white hover:bg-[#258399] focus:ring-[#2d9ab7] shadow-sm",
     };
 
     const sizes = {

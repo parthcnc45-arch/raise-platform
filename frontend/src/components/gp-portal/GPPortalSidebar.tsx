@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Logo from "@/components/common/Logo";
 import Link from "next/link";
 import { FileCheck2, LayoutDashboard, LogOut, UserRound } from "lucide-react";
 
@@ -17,7 +17,7 @@ export default function GPPortalSidebar({ fullName, company, token, activePage, 
     <aside className="flex w-full flex-col bg-[#183656] text-white lg:min-h-screen lg:w-[260px] lg:shrink-0">
       <div className="flex items-center border-b border-white/10 px-6 py-5 lg:px-7">
         <Link href="/" aria-label="RAISE home" className="inline-flex items-center">
-          <Image src="/images/logo/logo-dark.png" alt="RAISE" width={132} height={32} priority className="h-8 w-auto" />
+          <Logo variant="dark" className="h-8 w-auto" />
         </Link>
       </div>
       <div className="flex items-center gap-3 px-6 py-6 lg:px-7">
