@@ -17,6 +17,7 @@ import {
   Search,
   Eye,
   Link2,
+  Copy,
   Edit2,
   Send,
   Trash2,
@@ -59,6 +60,8 @@ export default function GPApplicationTable() {
   const [resendModalOpen, setResendModalOpen] = useState(false);
   const [recordToResend, setRecordToResend] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
+
+  const [copyingId, setCopyingId] = useState<string | null>(null);
 
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -177,6 +180,48 @@ export default function GPApplicationTable() {
       setIsResending(false);
       setResendModalOpen(false);
       setRecordToResend(null);
+    }
+  };
+
+  // Falls back to a hidden textarea when the async clipboard API is unavailable or blocked
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      try {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(area);
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+  };
+
+  // Copies the magic link that was already emailed (the link itself is not changed)
+  const copyMagicLink = async (appId: string) => {
+    setCopyingId(appId);
+    try {
+      const res = await apiClient(`/gp-applications/${appId}/magic-link`);
+      const data = await res.json();
+      const link: string | undefined = data?.data?.magic_link;
+      if (data?.success && link) {
+        const copied = await copyToClipboard(link);
+        showToast(copied ? "Magic link copied to clipboard" : "Could not copy the link. Please try again.", copied ? "success" : "error");
+      } else {
+        showToast(data?.message || "Failed to get magic link", "error");
+      }
+    } catch {
+      showToast("Error getting magic link", "error");
+    } finally {
+      setCopyingId(null);
     }
   };
 
@@ -450,6 +495,7 @@ export default function GPApplicationTable() {
                 <TableHead>Event</TableHead>
                 <TableHead>Invitation Status</TableHead>
                 <TableHead>Link Access Status</TableHead>
+                <TableHead>Copy Link</TableHead>
                 <TableHead>Link Details</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -457,7 +503,7 @@ export default function GPApplicationTable() {
             <TableBody>
               {!loading && applications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-12 text-center text-slate-400">
+                  <TableCell colSpan={10} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FileText className="h-8 w-8 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No applications found</p>
@@ -494,6 +540,17 @@ export default function GPApplicationTable() {
                           {app.magic_link_accessed ? "Accessed" : "Not Accessed"}
                         </Badge>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => copyMagicLink(app.id || app._id)}
+                        disabled={copyingId === (app.id || app._id)}
+                        title="Copy the magic link that was emailed to the applicant"
+                        className="inline-flex disabled:cursor-wait disabled:opacity-60 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        {copyingId === (app.id || app._id) ? "Copying..." : "Copy Link"}
+                      </button>
                     </TableCell>
                     <TableCell>
                       <button

@@ -139,6 +139,8 @@ export const createGpApplication = async (req: Request, res: Response) => {
         event_id: event,
         status: initialStatus,
         magic_token_hash,
+        // the emailed link is kept so admins can copy it later
+        magic_link,
       })
       .select('*')
       .single();
@@ -551,6 +553,7 @@ export const resendMagicLink = async (req: Request, res: Response) => {
       .from('gp_applications')
       .update({
         magic_token_hash: newHash,
+        magic_link,
         magic_link_failed_attempts: 0,
         magic_link_locked_until: null,
         status: 'resended',
@@ -568,6 +571,44 @@ export const resendMagicLink = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error resending magic link:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Admin: return the magic link that was last emailed to the applicant (stored in gp_applications.magic_link).
+export const getStoredMagicLink = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID format' });
+    }
+
+    const { data: application, error } = await supabase
+      .from('gp_applications')
+      .select('magic_link')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error loading stored magic link:', error.message);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'GP Application not found' });
+    }
+    if (!application.magic_link) {
+      return res.status(409).json({
+        success: false,
+        message: 'The original link is not available for this application. Use "Resend Link" to send a new one.',
+      });
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json({ success: true, data: { magic_link: application.magic_link } });
+  } catch (error: any) {
+    console.error('Error reading stored magic link:', error?.message);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -596,7 +637,7 @@ export const getGpApplicationDetails = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'GP Application not found' });
     }
 
-    const { magic_token_hash, events, ...record } = application as Record<string, any>;
+    const { magic_token_hash, magic_link: _magicLink, events, ...record } = application as Record<string, any>;
     const eventRelation = Array.isArray(events) ? events[0] : events;
 
     res.status(200).json({

@@ -6,6 +6,7 @@ import {
   updateGpApplication,
   getGpApplicationByMagicToken,
   resendMagicLink,
+  getStoredMagicLink,
   getGpSession,
   checkGpSessionForToken,
   logoutGpSession,
@@ -35,5 +36,6 @@ router.get('/:id/details', getGpApplicationDetails as any);
 router.delete('/:id', deleteGpApplication as any);
 router.put('/:id', updateGpApplication as any);
 router.post('/:id/resend-magic-link', resendMagicLink as any);
+router.get('/:id/magic-link', getStoredMagicLink as any);
 
 export default router;
