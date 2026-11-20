@@ -20,11 +20,12 @@ export type FirmUser = {
   role: string;
 };
 
-export type FundPerformance = {
+export type TrackRecordFund = {
   id: string;
   name: string;
   type: string;
   vintage: string;
+  asOf: string;
   size: string;
   called: string;
   dpi: string;
@@ -34,8 +35,9 @@ export type FundPerformance = {
 
 export type TrackRecordData = {
   deckFileName: string;
-  firmType: "existing" | "new";
-  funds: FundPerformance[];
+  performanceOption: "" | "Operating Firm" | "First Time Fund";
+  numberOfFunds: string;
+  funds: TrackRecordFund[];
   supplementalInfo: string;
 };
 
@@ -43,20 +45,25 @@ export type PortfolioCompany = {
   id: string;
   companyName: string;
   website: string;
-  investmentYear: string;
-  entryStage: string;
+  stage: string;
+  status: string;
+  firstInvestmentYear: string;
+  firstInvestmentAmount: string;
+  initialOwnership: string;
   totalInvested: string;
-  ownership: string;
-  commentary: string;
-  expanded: boolean;
+  currentOwnership: string;
+  boardSeat: string;
+  comment: string;
 };
 
 export type FinalSubmissionData = {
-  databaseListing: "public" | "private";
+  publishOption: "" | "Yes" | "No";
   companyLogoName: string;
+  // Local browser preview URLs (blob:), never persisted in the saved draft
+  companyLogoUrl?: string;
   headshotName: string;
+  headshotUrl?: string;
   headline: string;
   executiveSummary: string;
-  allowDeckAccess: boolean;
-  allowTrackRecordAccess: boolean;
+  shareDeck: "" | "Yes" | "No";
 };

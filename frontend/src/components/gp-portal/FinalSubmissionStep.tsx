@@ -1,76 +1,238 @@
 "use client";
 
 import { useRef, type ChangeEvent } from "react";
-import { FileImage, Globe2, ImagePlus, LockKeyhole, ShieldCheck, SlidersHorizontal, Upload, UserRound } from "lucide-react";
+import { BodyText, FieldError, PageTitle, SectionHeading, SelectInput, inputCls } from "./formUi";
+import RichTextEditor from "./RichTextEditor";
 import type { FinalSubmissionData } from "./types";
 
 type FinalSubmissionStepProps = {
   value: FinalSubmissionData;
   onChange: (next: FinalSubmissionData) => void;
+  companyName: string;
+  contactName: string;
+  errors: Record<string, string>;
 };
 
-export default function FinalSubmissionStep({ value, onChange }: FinalSubmissionStepProps) {
-  const logoInput = useRef<HTMLInputElement>(null);
-  const headshotInput = useRef<HTMLInputElement>(null);
-  const updateFile = (event: ChangeEvent<HTMLInputElement>, field: "companyLogoName" | "headshotName") => {
+function ImageUploadBox({
+  title,
+  emptyLabel,
+  buttonLabel,
+  fileName,
+  previewUrl,
+  boxClassName,
+  onPick,
+  onClear,
+}: {
+  title: string;
+  emptyLabel: string;
+  buttonLabel: string;
+  fileName: string;
+  previewUrl?: string;
+  boxClassName: string;
+  onPick: (file: File) => void;
+  onClear: () => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+
+  const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) onChange({ ...value, [field]: file.name });
+    if (file) onPick(file);
+    event.target.value = "";
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs font-medium text-slate-500">RAISE Partner Workspace <span className="mx-1.5 text-slate-300">/</span> Final Step</p><h2 className="mt-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Step 5: Database Opt-In &amp; Submission</h2><p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">Finalize your application for the RAISE Global Summit and set up your public profile for LP visibility.</p></div>
-        <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700">100% Complete</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full w-full rounded-full bg-blue-700" /></div>
+    <div className="space-y-2">
+      {/* min-h keeps both columns aligned even when one title wraps to two lines */}
+      <p className="min-h-[2.5rem] break-words text-xs font-bold leading-snug text-slate-800">{title}</p>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4 sm:px-6"><h3 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900"><Globe2 className="h-4 w-4 text-blue-600" /> RAISE Emerging Manager Database</h3></div>
-        <div className="p-5 sm:p-6"><p className="mb-4 text-xs text-slate-500">Choose how your application data will be handled post-submit. Our database is accessed by qualified LPs globally.</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button type="button" onClick={() => onChange({ ...value, databaseListing: "public" })} aria-pressed={value.databaseListing === "public"} className={`rounded-xl border p-4 text-left transition ${value.databaseListing === "public" ? "border-blue-500 bg-blue-50/60 ring-1 ring-blue-200" : "border-slate-200 hover:border-slate-300"}`}>
-              <span className="flex items-center justify-between"><span className={`h-4 w-4 rounded-full border-2 ${value.databaseListing === "public" ? "border-blue-600 bg-blue-600 shadow-[inset_0_0_0_3px_white]" : "border-slate-300"}`} /><Globe2 className="h-4 w-4 text-blue-500" /></span><span className="mt-3 block text-xs font-bold text-slate-900">Yes - Public Listing</span><span className="mt-1 block text-[10px] leading-relaxed text-slate-500">Publish this information in the RAISE Emerging Manager Database for LP discovery.</span>
+      {/* Preview of the image the user selected */}
+      {previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={previewUrl}
+          alt={title}
+          className={`${boxClassName} rounded-md border border-slate-300 bg-white`}
+        />
+      ) : (
+        <div
+          className={`${boxClassName} flex items-center justify-center rounded-md border border-slate-300 bg-slate-200 px-2 text-center text-[10px] font-semibold text-slate-500`}
+        >
+          {fileName || emptyLabel}
+        </div>
+      )}
+
+      {/* Fixed-height row so the upload buttons line up across both columns */}
+      <p className="min-h-[1.25rem] break-all text-xs text-slate-800">
+        {fileName && (
+          <>
+            {fileName}{" "}
+            <button type="button" onClick={onClear} className="text-[#1F5FBF] hover:underline">
+              (delete)
             </button>
-            <button type="button" onClick={() => onChange({ ...value, databaseListing: "private" })} aria-pressed={value.databaseListing === "private"} className={`rounded-xl border p-4 text-left transition ${value.databaseListing === "private" ? "border-blue-500 bg-blue-50/60 ring-1 ring-blue-200" : "border-slate-200 hover:border-slate-300"}`}>
-              <span className="flex items-center justify-between"><span className={`h-4 w-4 rounded-full border-2 ${value.databaseListing === "private" ? "border-blue-600 bg-blue-600 shadow-[inset_0_0_0_3px_white]" : "border-slate-300"}`} /><LockKeyhole className="h-4 w-4 text-slate-400" /></span><span className="mt-3 block text-xs font-bold text-slate-900">No - Private Selection</span><span className="mt-1 block text-[10px] leading-relaxed text-slate-500">Only submit this application for the private Selection Committee review process.</span>
-            </button>
-          </div>
-        </div>
-      </section>
+          </>
+        )}
+      </p>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4 sm:px-6"><h3 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900"><ImagePlus className="h-4 w-4 text-blue-600" /> Profile Visuals</h3></div>
-        <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
-          <AssetUpload title="Company Logo" uploadLabel="Upload Brand Asset" hint="SVG, PNG, transparent" fileName={value.companyLogoName} inputRef={logoInput} onChange={(event) => updateFile(event, "companyLogoName")} icon={<FileImage className="h-5 w-5" />} />
-          <AssetUpload title="Lead Partner Headshot" uploadLabel="Upload Portrait" hint="JPG, PNG, min 400×400px" fileName={value.headshotName} inputRef={headshotInput} onChange={(event) => updateFile(event, "headshotName")} icon={<UserRound className="h-5 w-5" />} />
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4 sm:px-6"><h3 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900"><SlidersHorizontal className="h-4 w-4 text-blue-600" /> Executive Summary</h3></div>
-        <div className="space-y-4 p-5 sm:p-6">
-          <div><label htmlFor="gp-headline" className="mb-2 block text-[10px] font-semibold text-slate-700">One-Line Pitch (Headline)</label><input id="gp-headline" maxLength={100} value={value.headline} onChange={(event) => onChange({ ...value, headline: event.target.value })} placeholder="e.g. Scaling the next generation of climate infrastructure in emerging markets." className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><p className="mt-1 text-right text-[9px] text-slate-400">{value.headline.length} / 100 characters</p></div>
-          <div><label htmlFor="gp-executive-summary" className="mb-2 block text-[10px] font-semibold text-slate-700">Concise Executive Summary</label><textarea id="gp-executive-summary" maxLength={1000} rows={5} value={value.executiveSummary} onChange={(event) => onChange({ ...value, executiveSummary: event.target.value })} placeholder="Provide a high-level overview of your investment thesis, team background, and fund performance..." className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><p className="mt-1 text-right text-[9px] text-slate-400">{value.executiveSummary.length} / 1000 characters</p></div>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4 sm:px-6"><h3 className="flex items-center gap-2 text-xs font-bold uppercase text-slate-900"><ShieldCheck className="h-4 w-4 text-blue-600" /> Visibility Permissions</h3></div>
-        <div className="divide-y divide-slate-100 p-4 sm:px-6">
-          <VisibilityToggle title="Allow LPs to access fundraising deck" description="Only verified LPs will see the ‘Download Deck’ button on your profile." checked={value.allowDeckAccess} onChange={(checked) => onChange({ ...value, allowDeckAccess: checked })} />
-          <VisibilityToggle title="Allow LPs to view track record data" description="Visibility of detailed fund and portfolio company metrics to verified LPs." checked={value.allowTrackRecordAccess} onChange={(checked) => onChange({ ...value, allowTrackRecordAccess: checked })} />
-        </div>
-      </section>
-      <p className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.15em] text-slate-400"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Your information is secure and encrypted</p>
+      <input ref={input} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        className="rounded-md bg-[#2d9ab7] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-[#258399]"
+      >
+        {buttonLabel}
+      </button>
     </div>
   );
 }
 
-function AssetUpload({ title, uploadLabel, hint, fileName, inputRef, onChange, icon }: { title: string; uploadLabel: string; hint: string; fileName: string; inputRef: React.RefObject<HTMLInputElement | null>; onChange: (event: ChangeEvent<HTMLInputElement>) => void; icon: React.ReactNode }) {
-  return <div><p className="mb-2 text-[10px] font-semibold text-slate-700">{title}</p><button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-28 w-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/40 px-4 py-4 text-center transition hover:border-blue-300 hover:bg-blue-50/40"><input ref={inputRef} type="file" accept="image/*" onChange={onChange} className="hidden" /><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">{icon}</span><span className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-slate-700"><Upload className="h-3 w-3" />{fileName || uploadLabel}</span><span className="mt-1 text-[8px] uppercase tracking-wide text-slate-400">{hint}</span></button></div>;
-}
+export default function FinalSubmissionStep({
+  value,
+  onChange,
+  companyName,
+  contactName,
+  errors,
+}: FinalSubmissionStepProps) {
+  type ImageKeys = "companyLogoName" | "headshotName";
+  type UrlKeys = "companyLogoUrl" | "headshotUrl";
 
-function VisibilityToggle({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <div className="flex items-center justify-between gap-4 py-3 first:pt-1 last:pb-1"><div><p className="text-[10px] font-semibold text-slate-800">{title}</p><p className="mt-1 text-[9px] text-slate-500">{description}</p></div><button type="button" role="switch" aria-checked={checked} aria-label={title} onClick={() => onChange(!checked)} className={`relative h-5 w-9 shrink-0 rounded-full transition ${checked ? "bg-[#2d9ab7]" : "bg-slate-300"}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${checked ? "left-[18px]" : "left-0.5"}`} /></button></div>;
+  // Keeps the selected image in the browser only (blob URL) so it can be previewed
+  const pickImage = (file: File, nameKey: ImageKeys, urlKey: UrlKeys) => {
+    const previous = value[urlKey];
+    if (previous) URL.revokeObjectURL(previous);
+    onChange({ ...value, [nameKey]: file.name, [urlKey]: URL.createObjectURL(file) });
+  };
+
+  const clearImage = (nameKey: ImageKeys, urlKey: UrlKeys) => {
+    const previous = value[urlKey];
+    if (previous) URL.revokeObjectURL(previous);
+    onChange({ ...value, [nameKey]: "", [urlKey]: undefined });
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <PageTitle>{companyName.toUpperCase()}</PageTitle>
+      </div>
+
+      {/* EMERGING MANAGER DATABASE */}
+      <section className="space-y-3">
+        <SectionHeading>EMERGING MANAGER DATABASE</SectionHeading>
+        <BodyText>
+          The information you have provided will be made available to the Selection Committee and used privately by
+          them to decide who will be invited to RAISE, and who will present. In addition, the information will be
+          combined with the applications of other GPs to create an anonymous aggregate view of all the Emerging
+          Managers.
+        </BodyText>
+        <BodyText>
+          In addition to the above uses of this information, RAISE provides a searchable Emerging Manager Database
+          to all attending LPs. Would you like to publish a profile to LPs?
+        </BodyText>
+
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+            <input
+              type="radio"
+              name="publishOption"
+              checked={value.publishOption === "Yes"}
+              onChange={() => onChange({ ...value, publishOption: "Yes" })}
+              className="h-3.5 w-3.5 accent-[#1B365D]"
+            />
+            <span>Yes - I also want to publish this information on the RAISE Emerging Manager Database</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+            <input
+              type="radio"
+              name="publishOption"
+              checked={value.publishOption === "No"}
+              onChange={() => onChange({ ...value, publishOption: "No" })}
+              className="h-3.5 w-3.5 accent-[#1B365D]"
+            />
+            <span>No Thank You - let’s just submit this application</span>
+          </label>
+          <FieldError message={errors.publishOption} />
+        </div>
+      </section>
+
+      {value.publishOption === "Yes" && (
+        <>
+          <section className="space-y-4">
+            <SectionHeading>EMERGING MANAGER DATABASE DETAILS</SectionHeading>
+
+            <div className="grid grid-cols-1 items-start gap-8 sm:grid-cols-2">
+              <ImageUploadBox
+                title={`Company Logo for ${companyName}`}
+                emptyLabel="No Logo Uploaded"
+                buttonLabel="Upload Logo"
+                fileName={value.companyLogoName}
+                previewUrl={value.companyLogoUrl}
+                boxClassName="h-28 w-44 object-contain"
+                onPick={(file) => pickImage(file, "companyLogoName", "companyLogoUrl")}
+                onClear={() => clearImage("companyLogoName", "companyLogoUrl")}
+              />
+
+              <ImageUploadBox
+                title={`Headshot for ${contactName}`}
+                emptyLabel="No Headshot Uploaded"
+                buttonLabel="Upload Headshot"
+                fileName={value.headshotName}
+                previewUrl={value.headshotUrl}
+                boxClassName="h-28 w-28 object-cover"
+                onPick={(file) => pickImage(file, "headshotName", "headshotUrl")}
+                onClear={() => clearImage("headshotName", "headshotUrl")}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <SectionHeading>EXECUTIVE SUMMARY</SectionHeading>
+            <BodyText>
+              Your headline is the distilled essence of who you are and what you do. In 20 words or less convey to
+              LPs why they should open and look at your profile.
+            </BodyText>
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <label className="w-24 text-xs text-gray-800 shrink-0">Headline:</label>
+              <input
+                type="text"
+                value={value.headline}
+                onChange={(e) => onChange({ ...value, headline: e.target.value })}
+                className={`${inputCls} w-full`}
+              />
+            </div>
+
+            <BodyText>
+              Please provide a concise summary of your firm below for inclusion in the Emerging Manager Database.
+              Provide whatever data you want to share including links to external information as needed, but keep
+              it brief (200 words or less).
+            </BodyText>
+            <RichTextEditor
+              ariaLabel="Executive summary"
+              value={value.executiveSummary}
+              onChange={(html) => onChange({ ...value, executiveSummary: html })}
+              minHeight={180}
+            />
+          </section>
+
+          <section className="space-y-3">
+            <SectionHeading>PERMISSIONS</SectionHeading>
+            <BodyText>
+              Please note that by submitting your profile to the RAISE Emerging Manager Database, you hereby grant
+              RAISE the right to disclose your email address to RAISE Limited Partners.
+            </BodyText>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label className="text-xs text-gray-800 sm:max-w-xl">
+                Do you want to allow RAISE Limited Partners access to your fundraising deck via the RAISE Emerging
+                Manager Database?
+              </label>
+              <SelectInput
+                value={value.shareDeck}
+                onChange={(next) => onChange({ ...value, shareDeck: next as FinalSubmissionData["shareDeck"] })}
+                options={["Yes", "No"]}
+              />
+            </div>
+            <FieldError message={errors.shareDeck} />
+          </section>
+        </>
+      )}
+    </div>
+  );
 }

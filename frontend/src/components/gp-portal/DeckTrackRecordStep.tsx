@@ -1,82 +1,278 @@
 "use client";
 
-import { useRef, type ChangeEvent } from "react";
-import { Building2, ChartNoAxesCombined, FileText, Info, List, Plus, Trash2, Upload } from "lucide-react";
-import type { TrackRecordData } from "./types";
+import { useRef, useState, type ChangeEvent } from "react";
+import PerformanceMetricsModal from "./PerformanceMetricsModal";
+import {
+  BodyText,
+  FieldError,
+  HelpLink,
+  PageTitle,
+  SectionHeading,
+  SelectInput,
+  inputCls,
+} from "./formUi";
+import RichTextEditor from "./RichTextEditor";
+import type { TrackRecordData, TrackRecordFund } from "./types";
 
 type DeckTrackRecordStepProps = {
   value: TrackRecordData;
   onChange: (next: TrackRecordData) => void;
+  deckError?: string;
 };
 
-const fundTypes = ["Venture Capital", "Private Equity", "Growth Equity", "Other"];
+const FUND_TYPES = [
+  { label: "Current firm blind pool", value: "Current BP" },
+  { label: "Current firm SPV", value: "Current SPV" },
+  { label: "Prior firm blind pool", value: "Prior BP" },
+  { label: "Prior firm SPV", value: "Prior SPV" },
+  { label: "Angel investment", value: "Angel" },
+];
 
-export default function DeckTrackRecordStep({ value, onChange }: DeckTrackRecordStepProps) {
+const AS_OF_DATES = ["Q2 2026", "Q1 2026", "Q4 2025", "pre Q4 2025"];
+
+const TRACK_RECORD_COUNTS = [
+  { label: "I have no track record", value: "na" },
+  { label: "I prefer not to share my track record", value: "undisclosed" },
+  ...Array.from({ length: 10 }, (_, i) => ({ label: String(i + 1), value: String(i + 1) })),
+];
+
+export const emptyFund = (id: string): TrackRecordFund => ({
+  id,
+  name: "",
+  type: "",
+  vintage: "",
+  asOf: "",
+  size: "",
+  called: "",
+  dpi: "",
+  rvpi: "",
+  netIrr: "",
+});
+
+// Right-hand column of each fund row (the left column holds name, type, vintage and as-of)
+const fundFields: Array<{ key: keyof TrackRecordFund; label: string }> = [
+  { key: "size", label: "Total Size (M):" },
+  { key: "called", label: "Called (%):" },
+  { key: "dpi", label: "DPI (%):" },
+  { key: "rvpi", label: "RVPI (%):" },
+  { key: "netIrr", label: "Net IRR (%):" },
+];
+
+export default function DeckTrackRecordStep({ value, onChange, deckError }: DeckTrackRecordStepProps) {
   const fileInput = useRef<HTMLInputElement>(null);
-  const updateFund = (id: string, field: string, fieldValue: string) => onChange({
-    ...value,
-    funds: value.funds.map((fund) => fund.id === id ? { ...fund, [field]: fieldValue } : fund),
-  });
+  const [metricsOpen, setMetricsOpen] = useState(false);
+
+  const rowCount = /^\d+$/.test(value.numberOfFunds) ? Number(value.numberOfFunds) : 0;
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) onChange({ ...value, deckFileName: file.name });
+    event.target.value = "";
   };
 
-  const addFund = () => onChange({
-    ...value,
-    funds: [...value.funds, { id: crypto.randomUUID(), name: "", type: "", vintage: "", size: "", called: "", dpi: "", rvpi: "", netIrr: "" }],
-  });
+  const updateFund = (index: number, field: keyof TrackRecordFund, fieldValue: string) =>
+    onChange({
+      ...value,
+      funds: value.funds.map((fund, i) => (i === index ? { ...fund, [field]: fieldValue } : fund)),
+    });
 
   return (
-    <div className="space-y-5">
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4 sm:px-6"><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><FileText className="h-4 w-4 text-blue-600" /> 1. Pitch Deck</h3></div>
-        <div className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-slate-50 p-4">
-            <div className="flex min-w-0 items-center gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700"><FileText className="h-5 w-5" /></span><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800">{value.deckFileName || "No pitch deck selected"}</p><p className="mt-1 text-[10px] text-slate-500">{value.deckFileName ? "Sample deck · preview only" : "PDF format recommended"}</p></div></div>
-            <div className="flex shrink-0 items-center gap-2">
-              <input ref={fileInput} type="file" accept=".pdf,application/pdf" onChange={handleFile} className="hidden" />
-              <button type="button" onClick={() => fileInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#2d9ab7] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#258399]"><Upload className="h-3.5 w-3.5" /> Upload new deck</button>
-              {value.deckFileName && <button type="button" onClick={() => onChange({ ...value, deckFileName: "" })} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
-            </div>
-          </div>
-          <p className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-500"><Info className="h-3 w-3 text-blue-600" /> Your deck will be shared securely with the Selection Committee. Privacy is our priority.</p>
+    <div className="space-y-8">
+      {/* FUNDRAISING DECK */}
+      <section className="space-y-2">
+        <PageTitle>FUNDRAISING DECK</PageTitle>
+        <BodyText>
+          Providing a copy of your most recent fundraising deck is one of the best ways to share information about
+          your fund with the Selection Committee.
+        </BodyText>
+        <BodyText>
+          Click Upload Deck to upload your fundraising deck in PDF format <HelpLink>who can see this?</HelpLink>. If
+          you are not actively fundraising, upload your most recent marketing deck or your most recent investor
+          update.
+        </BodyText>
+
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <span className="text-xs text-gray-800">Deck Filename:</span>
+          {value.deckFileName ? (
+            <span className="text-xs text-gray-800">
+              {value.deckFileName}{" "}
+              <button
+                type="button"
+                onClick={() => onChange({ ...value, deckFileName: "" })}
+                className="text-[#1F5FBF] hover:underline"
+              >
+                (delete)
+              </button>
+            </span>
+          ) : (
+            <span className="text-xs text-gray-600">Deck Not Yet Uploaded</span>
+          )}
         </div>
-      </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><Building2 className="h-4 w-4 text-blue-600" /> 2. Track Record Selection</h3>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 ${value.firmType === "existing" ? "border-blue-500 bg-blue-50/60" : "border-slate-200"}`}><input type="radio" name="track-record-type" checked={value.firmType === "existing"} onChange={() => onChange({ ...value, firmType: "existing" })} className="mt-0.5 accent-blue-700" /><span><span className="block text-xs font-bold uppercase text-slate-800">Existing firm</span><span className="mt-1 block text-[10px] text-slate-500">We have at least one closed fund with historical data.</span></span></label>
-          <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 ${value.firmType === "new" ? "border-blue-500 bg-blue-50/60" : "border-slate-200"}`}><input type="radio" name="track-record-type" checked={value.firmType === "new"} onChange={() => onChange({ ...value, firmType: "new" })} className="mt-0.5 accent-blue-700" /><span><span className="block text-xs font-bold uppercase text-slate-800">New / First-Time Firm</span><span className="mt-1 block text-[10px] text-slate-500">This is our first fund or we are an emerging manager.</span></span></label>
+        <div>
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".pdf,application/pdf"
+            onChange={handleFile}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="rounded-md bg-[#2d9ab7] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-[#258399]"
+          >
+            Upload Deck
+          </button>
         </div>
+        <FieldError message={deckError} />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:px-6"><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><ChartNoAxesCombined className="h-4 w-4 text-blue-600" /> 3. Fund Performance</h3><span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">Values in USD ($M)</span></div>
-        {value.firmType === "existing" ? <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left">
-              <thead className="bg-slate-50 text-[9px] font-semibold uppercase tracking-wide text-slate-500"><tr>{["Fund name", "Type", "Vintage", "Size ($M)", "Called %", "DPI", "RVPI", "Net IRR", ""].map((heading, index) => <th key={`${heading}-${index}`} className="px-3 py-3">{heading}</th>)}</tr></thead>
-              <tbody className="divide-y divide-slate-100">{value.funds.map((fund) => <tr key={fund.id}>
-                <td className="px-2 py-2"><input aria-label="Fund name" value={fund.name} onChange={(event) => updateFund(fund.id, "name", event.target.value)} placeholder="Fund name..." className="w-28 rounded-md border border-transparent px-2 py-1.5 text-[10px] text-slate-800 outline-none focus:border-blue-300" /></td>
-                <td className="px-2 py-2"><select aria-label="Fund type" value={fund.type} onChange={(event) => updateFund(fund.id, "type", event.target.value)} className="w-32 rounded-md border border-transparent bg-white px-2 py-1.5 text-[10px] text-slate-700 outline-none focus:border-blue-300"><option value="">Select...</option>{fundTypes.map((type) => <option key={type}>{type}</option>)}</select></td>
-                {([["vintage", "Year"], ["size", "0.0"], ["called", "0"], ["dpi", "0.00x"], ["rvpi", "0.00x"], ["netIrr", "0.0%"]] as const).map(([key, placeholder]) => <td key={key} className="px-2 py-2"><input aria-label={key} value={fund[key]} onChange={(event) => updateFund(fund.id, key, event.target.value)} placeholder={placeholder} className={`w-16 rounded-md border border-transparent px-2 py-1.5 text-[10px] text-slate-700 outline-none focus:border-blue-300 ${key === "netIrr" ? "text-blue-700" : ""}`} /></td>)}
-                <td className="px-2 py-2"><button type="button" aria-label="Remove fund" onClick={() => onChange({ ...value, funds: value.funds.filter((row) => row.id !== fund.id) })} className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button></td>
-              </tr>)}</tbody>
-            </table>
+      {/* TRACK RECORD */}
+      <section className="space-y-3">
+        <SectionHeading>TRACK RECORD</SectionHeading>
+        <BodyText>
+          Track Record is one factor used by the Selection Committee to determine who gets invited to, and who
+          presents at RAISE. If you have a track record, supplying it to the committee will greatly increase your
+          chances <HelpLink>who can see this?</HelpLink>.
+        </BodyText>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-800">Select the best option for you:</p>
+          <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+            <input
+              type="radio"
+              name="performanceOption"
+              checked={value.performanceOption === "Operating Firm"}
+              onChange={() => onChange({ ...value, performanceOption: "Operating Firm" })}
+              className="h-3.5 w-3.5 accent-[#1B365D]"
+            />
+            <span>We are an existing firm with at least one closed fund.</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+            <input
+              type="radio"
+              name="performanceOption"
+              checked={value.performanceOption === "First Time Fund"}
+              onChange={() => onChange({ ...value, performanceOption: "First Time Fund" })}
+              className="h-3.5 w-3.5 accent-[#1B365D]"
+            />
+            <span>We are a new firm and we have not completed the final close of our first fund.</span>
+          </label>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <label className="text-xs text-gray-800 sm:max-w-xl">
+            I am supplying a track record including a total of this many blind pools, angel investments, and SPVs:
+          </label>
+          <SelectInput
+            value={value.numberOfFunds}
+            onChange={(next) => onChange({ ...value, numberOfFunds: next })}
+            options={TRACK_RECORD_COUNTS}
+          />
+        </div>
+
+        {rowCount > 0 && (
+          <div className="space-y-4 pt-2">
+            <BodyText>
+              Please include all of your current firm&apos;s blind pool funds first, followed by your current
+              firm&apos;s SPVs, then optionally include prior investments.
+            </BodyText>
+            <BodyText>
+              Please only provide net performance data{" "}
+              <HelpLink onClick={() => setMetricsOpen(true)}>click for performance metrics definitions?</HelpLink>
+            </BodyText>
+
+            {Array.from({ length: rowCount }, (_, index) => {
+              const fund = value.funds[index] ?? emptyFund(`fund-${index}`);
+              return (
+                <div
+                  key={fund.id}
+                  className="flex flex-col gap-3 rounded-lg border border-[#c9d9ee] bg-[#e8f0fb] p-4 sm:flex-row sm:gap-5"
+                >
+                  <span className="w-8 shrink-0 text-3xl font-light leading-none text-[#1B365D]">{index + 1}</span>
+
+                  <div className="grid flex-1 grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2">
+                    {/* Left column */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="w-24 shrink-0 text-xs font-medium text-slate-800">Fund Name:</label>
+                        <input
+                          type="text"
+                          value={fund.name}
+                          onChange={(e) => updateFund(index, "name", e.target.value)}
+                          className={`${inputCls} w-full min-w-0`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="w-24 shrink-0 text-xs font-medium text-slate-800">Fund Type:</label>
+                        <SelectInput
+                          value={fund.type}
+                          onChange={(next) => updateFund(index, "type", next)}
+                          options={FUND_TYPES}
+                          className="w-full min-w-0"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="w-24 shrink-0 text-xs font-medium text-slate-800">Vintage:</label>
+                        <input
+                          type="text"
+                          value={fund.vintage}
+                          onChange={(e) => updateFund(index, "vintage", e.target.value)}
+                          className={`${inputCls} w-full min-w-0`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="w-24 shrink-0 text-xs font-medium text-slate-800">As Of:</label>
+                        <SelectInput
+                          value={fund.asOf}
+                          onChange={(next) => updateFund(index, "asOf", next)}
+                          options={AS_OF_DATES}
+                          className="w-full min-w-0"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Right column */}
+                    <div className="space-y-2">
+                      {fundFields.map((field) => (
+                        <div key={field.key} className="flex items-center gap-2">
+                          <label className="w-28 shrink-0 text-xs font-medium text-slate-800 md:text-right">
+                            {field.label}
+                          </label>
+                          <input
+                            type="text"
+                            value={fund[field.key]}
+                            onChange={(e) => updateFund(index, field.key, e.target.value)}
+                            className={`${inputCls} w-full min-w-0 md:w-32`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="border-t border-slate-100 p-4"><button type="button" onClick={addFund} className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-blue-200 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 hover:bg-blue-50"><Plus className="h-3.5 w-3.5" /> Add another fund</button></div>
-        </> : <div className="p-5 text-xs leading-relaxed text-slate-500">As a new / first-time firm, you can continue without historical closed-fund performance. Add any relevant partner track record in Supplemental Info below.</div>}
+        )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><List className="h-4 w-4 text-blue-600" /> 4. Supplemental Info</h3><span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">Optional</span></div>
-        <label htmlFor="supplemental-info" className="mt-4 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Additional performance notes or context</label>
-        <textarea id="supplemental-info" maxLength={1000} rows={4} value={value.supplementalInfo} onChange={(event) => onChange({ ...value, supplementalInfo: event.target.value })} placeholder="e.g. Detailed explanation of write-offs, recent portfolio exits, or benchmarking methodology..." className="mt-2 w-full resize-y rounded-lg border border-slate-200 px-3 py-2.5 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
-        <p className="mt-1 text-right text-[9px] text-slate-400">{value.supplementalInfo.length} / 1000 characters</p>
+      {/* SUPPLEMENTAL INFORMATION */}
+      <section className="space-y-2">
+        <SectionHeading>SUPPLEMENTAL INFORMATION TO THE SELECTION COMMITTEE</SectionHeading>
+        <BodyText>
+          Use the text area below to provide optional supplemental information, or links to external resources for
+          the Selection Committee to consider.
+        </BodyText>
+        <RichTextEditor
+          ariaLabel="Supplemental information"
+          value={value.supplementalInfo}
+          onChange={(html) => onChange({ ...value, supplementalInfo: html })}
+          minHeight={200}
+        />
       </section>
+
+      <PerformanceMetricsModal open={metricsOpen} onClose={() => setMetricsOpen(false)} />
     </div>
   );
 }

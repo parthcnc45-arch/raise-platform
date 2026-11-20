@@ -1,44 +1,15 @@
 "use client";
 
-import { Fragment, useState, type FormEvent, useEffect } from "react";
-import { ArrowLeft, ArrowRight, Check, ClipboardCheck, Download, LayoutDashboard, LogIn, Mail, SearchCheck } from "lucide-react";
-import DeckTrackRecordStep from "./DeckTrackRecordStep";
-import PortfolioHighlightsStep from "./PortfolioHighlightsStep";
+import { useState, type FormEvent, useEffect } from "react";
+import { Check } from "lucide-react";
+import CompanyFocusStep from "./CompanyFocusStep";
+import DeckTrackRecordStep, { emptyFund } from "./DeckTrackRecordStep";
+import PortfolioHighlightsStep, { emptyPortfolioCompany } from "./PortfolioHighlightsStep";
 import FinalSubmissionStep from "./FinalSubmissionStep";
+import ProfilePreviewStep from "./ProfilePreviewStep";
+import WizardStepper from "./WizardStepper";
+import { toList } from "./formUi";
 import type { FinalSubmissionData, PortfolioCompany, TrackRecordData } from "./types";
-
-type Field = {
-  name: string;
-  label: string;
-  placeholder?: string;
-  type?: "text" | "email" | "number" | "url" | "textarea" | "select" | "checks";
-  required?: boolean;
-  options?: string[];
-  wide?: boolean;
-  section?: string;
-  sectionDescription?: string;
-  helpText?: string;
-};
-
-const step2Fields: Field[] = [
-  { name: "investmentStages", label: "Investment stages", type: "checks" as const, section: "Section 1: Investment Strategy", options: ["Accelerator", "Pre-Seed", "Seed", "Series A", "Series B", "Stage Agnostic"] },
-  { name: "investmentThesis", label: "Investment thesis", type: "select" as const, options: ["Enterprise software", "Consumer", "Fintech", "Healthcare", "Climate and sustainability", "Deep technology", "Other"] },
-  { name: "globalFocus", label: "Global focus?", type: "select" as const, options: ["Yes, Globally Agnostic", "No, focused on specific markets", "Primarily regional"] },
-  { name: "geographicFocus", label: "Geographic focus details", placeholder: "Specify key markets (e.g., North America, SE Asia, Western Europe)...", type: "textarea" as const, wide: true },
-  { name: "totalCommittedCapital", label: "Total committed capital ($M)", placeholder: "0.00", type: "number" as const, section: "Section 2: Firm History", helpText: "Total capital committed to the firm's investment funds, in millions of US dollars." },
-  { name: "firstInvestmentYear", label: "First investment year", placeholder: "YYYY", type: "number" as const, helpText: "The year your firm made its first investment." },
-  { name: "blindPoolFunds", label: "Number of blind pool funds", placeholder: "0", type: "number" as const, helpText: "Number of funds raised without a pre-identified list of investments." },
-  { name: "spvs", label: "Number of SPVs", placeholder: "0", type: "number" as const, helpText: "Number of special purpose vehicles managed by your firm." },
-  { name: "fundraisingStatus", label: "Fundraising status", type: "select" as const, section: "Section 3: Fundraising", options: ["In Market (Open)", "Launching Soon", "First Close Completed", "Final Close Completed", "Not Currently Fundraising"] },
-  { name: "targetFundSize", label: "Target fund size ($M)", placeholder: "50.00", type: "number" as const },
-  { name: "minimumCheckSize", label: "Min check size", type: "select" as const, options: ["$50k - $250k", "$250k - $500k", "$500k - $1M", "$1M - $5M", "$5M+"] },
-  { name: "expectedFinalClose", label: "Expected final close", type: "select" as const, options: ["Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025", "Q1 2026", "Not applicable"] },
-  { name: "legalCounsel", label: "Legal counsel", placeholder: "e.g. Wilson Sonsini", section: "Section 4: Service Providers" },
-  { name: "fundAdmin", label: "Fund admin", placeholder: "e.g. Carta, Passthrough" },
-  { name: "taxPartner", label: "Tax partner", placeholder: "e.g. PwC, Deloitte" },
-  { name: "auditPartner", label: "Audit partner", placeholder: "e.g. KPMG" },
-  { name: "complianceProvider", label: "Compliance / Other", placeholder: "e.g. ACA Group", wide: true },
-];
 
 type GPApplicationWizardProps = {
   applicantName: string;
@@ -74,41 +45,58 @@ export default function GPApplicationWizard({
     ownershipMen: "",
     ownershipWomen: "",
     ownershipOtherGender: "",
-    investmentStages: "Pre-Seed,Seed",
-    globalFocus: "Yes, Globally Agnostic",
-    fundraisingStatus: "In Market (Open)",
-    targetFundSize: "50.00",
-    minimumCheckSize: "$250k - $500k",
-    expectedFinalClose: "Q1 2025",
+    ownershipWhite: "",
+    ownershipBipoc: "",
+    ownershipOtherRace: "",
+    teamAlsoIncludes: "",
+    investmentStages: "",
+    investmentThesis: "",
+    thematicFocus: "",
+    aiYear: "",
+    aiPercent: "",
+    hasGeoFocus: "",
+    geoFocus: "",
+    totalCommittedCapital: "",
+    firstInvestmentYear: "",
+    blindPoolFunds: "",
+    spvs: "",
+    fundraisingTiming: "",
+    targetFundSize: "",
+    minCheckSize: "",
+    expectedFinalClose: "",
+    serviceLegal: "",
+    serviceFundAdmin: "",
+    serviceTax: "",
+    serviceAudit: "",
+    serviceCompliance: "",
+    serviceInsurance: "",
+    hasCfo: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
   const [trackRecord, setTrackRecord] = useState<TrackRecordData>(() => ({
-    deckFileName: "Fund_Pitch_Deck.pdf",
-    firmType: "existing",
-    funds: [
-      { id: "sample-fund", name: "Fund I", type: "Venture Capital", vintage: "2021", size: "35.0", called: "85", dpi: "0.60x", rvpi: "1.90x", netIrr: "24.5%" },
-      { id: "new-fund-row", name: "", type: "", vintage: "", size: "", called: "", dpi: "", rvpi: "", netIrr: "" },
-    ],
+    deckFileName: "",
+    performanceOption: "",
+    numberOfFunds: "",
+    funds: Array.from({ length: 10 }, (_, i) => emptyFund(`fund-${i}`)),
     supplementalInfo: "",
   }));
 
-  const [portfolioCompanies, setPortfolioCompanies] = useState<PortfolioCompany[]>([
-    { id: "portfolio-1", companyName: "", website: "", investmentYear: "", entryStage: "", totalInvested: "", ownership: "", commentary: "", expanded: true },
-    { id: "portfolio-2", companyName: "", website: "", investmentYear: "", entryStage: "", totalInvested: "", ownership: "", commentary: "", expanded: false },
-  ]);
+  const [portfolioCompanies, setPortfolioCompanies] = useState<PortfolioCompany[]>(() =>
+    Array.from({ length: 3 }, (_, i) => emptyPortfolioCompany(`portfolio-${i}`))
+  );
 
   const [finalSubmission, setFinalSubmission] = useState<FinalSubmissionData>({
-    databaseListing: "public",
+    publishOption: "",
     companyLogoName: "",
     headshotName: "",
     headline: "",
     executiveSummary: "",
-    allowDeckAccess: true,
-    allowTrackRecordAccess: false,
+    shareDeck: "",
   });
 
   useEffect(() => {
@@ -117,7 +105,14 @@ export default function GPApplicationWizard({
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setValues((prev) => ({ ...prev, ...parsed }));
+        // Older drafts only stored the flat page 1-2 values
+        const draft = parsed.values ? parsed : { values: parsed };
+        if (draft.values) setValues((prev) => ({ ...prev, ...draft.values }));
+        if (draft.trackRecord) setTrackRecord((prev) => ({ ...prev, ...draft.trackRecord }));
+        if (Array.isArray(draft.portfolioCompanies) && draft.portfolioCompanies.length === 3) {
+          setPortfolioCompanies(draft.portfolioCompanies);
+        }
+        if (draft.finalSubmission) setFinalSubmission((prev) => ({ ...prev, ...draft.finalSubmission }));
       } catch {
         // ignore
       }
@@ -131,7 +126,16 @@ export default function GPApplicationWizard({
 
   const handleSaveForLater = () => {
     try {
-      localStorage.setItem("gp_app_draft", JSON.stringify(values));
+      localStorage.setItem(
+        "gp_app_draft",
+        JSON.stringify({
+          values,
+          trackRecord,
+          portfolioCompanies,
+          // blob: preview URLs only live for this page load, so they are not saved
+          finalSubmission: { ...finalSubmission, companyLogoUrl: undefined, headshotUrl: undefined },
+        })
+      );
       setSaveMessage("Your progress has been saved. You can return anytime.");
       setTimeout(() => setSaveMessage(""), 4000);
     } catch {
@@ -165,6 +169,55 @@ export default function GPApplicationWizard({
         nextErrors.contactEmail = "Enter a valid email address";
       }
       if (!values.firmName?.trim()) nextErrors.firmName = "Company name is required";
+      if (!values.presenterOption) nextErrors.presenterOption = "Presenter option choice is required.";
+      if (!values.title?.trim()) nextErrors.title = "Title is required.";
+      if (!values.headquarters?.trim()) nextErrors.headquarters = "Headquarters location is required.";
+      if (!values.investorBackground) nextErrors.investorBackground = "Investment team background is required.";
+      if (!values.partnerMen) nextErrors.partnerMen = "Team gender composition is required.";
+      if (!values.partnerWomen) nextErrors.partnerWomen = "Team gender composition is required.";
+      if (!values.partnerOtherGender) nextErrors.partnerOtherGender = "Team gender composition is required.";
+
+      // Ownership groups must add up to 100% when any value is entered (matches the official form)
+      const sumGroup = (keys: string[]) => {
+        const raw = keys.map((k) => (values[k] || "").trim().replace("%", ""));
+        if (raw.every((v) => v === "")) return 100;
+        return raw.reduce((total, v) => total + (Number(v) || 0), 0);
+      };
+      if (sumGroup(["ownershipMen", "ownershipWomen", "ownershipOtherGender"]) !== 100) {
+        nextErrors.ownershipMen = "Gender ownership must add up to 100%";
+      }
+      if (sumGroup(["ownershipWhite", "ownershipBipoc", "ownershipOtherRace"]) !== 100) {
+        nextErrors.ownershipWhite = "Race and ethnicity ownership must add up to 100%";
+      }
+    }
+
+    if (currentStep === 1) {
+      const isThematic = values.investmentThesis === "Investment Theme";
+      const themes = toList(values.thematicFocus);
+      if (isThematic && (themes.length < 1 || themes.length > 4)) {
+        nextErrors.thematicFocus = "Funds with an Investment Theme must select from 1-4 focus areas.";
+      }
+      if (isThematic && themes.includes("AI")) {
+        if (!values.aiYear) nextErrors.aiYear = "When you started investing in AI is required.";
+        if (!values.aiPercent) nextErrors.aiPercent = "Percentage of AI in your portfolio is required.";
+      }
+      if (values.fundraisingTiming === "In Market Now") {
+        if (!values.minCheckSize) nextErrors.minCheckSize = "Min check size is required.";
+        if (!values.expectedFinalClose) nextErrors.expectedFinalClose = "Estimated final close date required.";
+      }
+    }
+
+    if (currentStep === 2 && !trackRecord.deckFileName) {
+      nextErrors.deck = "All applications must contain a fundraising or marketing deck.";
+    }
+
+    if (currentStep === 4) {
+      if (!finalSubmission.publishOption) {
+        nextErrors.publishOption = "Emerging Manager Database choice is required.";
+      }
+      if (finalSubmission.publishOption === "Yes" && !finalSubmission.shareDeck) {
+        nextErrors.shareDeck = "Deck share settings required.";
+      }
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -174,7 +227,13 @@ export default function GPApplicationWizard({
     e.preventDefault();
     if (!validateStep()) return;
     if (currentStep === 4) {
-      setSubmitted(true);
+      if (finalSubmission.publishOption === "Yes") {
+        // Publishing to the Emerging Manager Database goes through the Profile Review page first
+        setPreviewing(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        setSubmitted(true);
+      }
     } else {
       setCurrentStep((s) => s + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -188,6 +247,23 @@ export default function GPApplicationWizard({
   };
 
   const displayCompany = (values.firmName || company || "CODEANDCORE").toUpperCase().replace(/\s+/g, "");
+
+  if (previewing && !submitted) {
+    return (
+      <ProfilePreviewStep
+        values={values}
+        trackRecord={trackRecord}
+        finalSubmission={finalSubmission}
+        companyName={values.firmName || company || ""}
+        contactName={`${values.firstName || ""} ${values.lastName || ""}`.trim()}
+        onBack={() => {
+          setPreviewing(false);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        onSubmit={() => setSubmitted(true)}
+      />
+    );
+  }
 
   if (submitted) {
     return (
@@ -207,7 +283,7 @@ export default function GPApplicationWizard({
           <button
             type="button"
             onClick={onGoDashboard}
-            className="rounded-[2px] bg-[#2d9ab7] px-5 py-2 text-xs font-semibold text-white hover:bg-[#258399]"
+            className="rounded-md bg-[#2d9ab7] px-5 py-2 text-xs font-semibold text-white hover:bg-[#258399]"
           >
             Go to Dashboard
           </button>
@@ -217,11 +293,20 @@ export default function GPApplicationWizard({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 md:py-8 font-sans text-[#333333]">
+    // zoom scales the whole form so it matches the dashboard container (max-w-5xl = 1024px): 853px x 1.2 = ~1024px
+    <div
+      style={{ zoom: 1.2 }}
+      className="mx-auto w-full max-w-[853px] px-4 py-6 sm:px-6 md:py-8 font-sans text-[#333333]"
+    >
+      {/* Progress */}
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-8">
+        <WizardStepper currentStep={currentStep} />
+      </div>
+
       {/* Top Page Indicator */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3 min-h-[24px]">
         {saveMessage ? (
-          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
             {saveMessage}
           </span>
         ) : (
@@ -232,13 +317,17 @@ export default function GPApplicationWizard({
         </span>
       </div>
 
-      <form noValidate onSubmit={handleNext}>
+      <form
+        noValidate
+        onSubmit={handleNext}
+        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+      >
         {/* ==================== PAGE 1 OF 5 ==================== */}
         {currentStep === 0 && (
           <div className="space-y-6">
             {/* WELCOME SECTION */}
             <div>
-              <h1 className="text-[#1B365D] font-bold text-sm tracking-wide uppercase mb-1">
+              <h1 className="text-[#1B365D] font-bold text-[15px] tracking-wide uppercase mb-2 pb-1.5 border-b-2 border-[#2d9ab7]/40">
                 WELCOME {displayCompany}
               </h1>
               <p className="text-[#333333] text-xs leading-relaxed">
@@ -250,12 +339,12 @@ export default function GPApplicationWizard({
 
             {/* PRESENTER OPTION */}
             <div>
-              <h2 className="text-[#1B365D] font-bold text-xs tracking-wider uppercase mb-1">
+              <h2 className="text-[#1B365D] font-bold text-[13px] tracking-wider uppercase mb-3 pb-1.5 border-b border-slate-200">
                 PRESENTER OPTION
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
                 <div className="md:col-span-8 text-[#333333] text-xs leading-relaxed">
-                  If you are invited to attend RAISE, do you want to present your fund to the attendees on the
+                  If you are invited to attend RAISE, do you want to present your fund to the attending LPs on the
                   main stage at the event? Please note, space is limited and not everyone who applies can present.
                   The Limited Partner Selection Committee selects the presenters.
                 </div>
@@ -263,19 +352,22 @@ export default function GPApplicationWizard({
                   <select
                     value={values.presenterOption || ""}
                     onChange={(e) => updateValue("presenterOption", e.target.value)}
-                    className="w-full md:w-52 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full md:w-52 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   >
                     <option value="">Please select...</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
+                    <option value="Yes">Yes - I want to present if selected</option>
+                    <option value="No">No - Not this year</option>
                   </select>
+                  {errors.presenterOption && (
+                    <span className="text-[11px] text-rose-600 ml-2">{errors.presenterOption}</span>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* REFERRED BY */}
             <div>
-              <h2 className="text-[#1B365D] font-bold text-xs tracking-wider uppercase mb-1">
+              <h2 className="text-[#1B365D] font-bold text-[13px] tracking-wider uppercase mb-3 pb-1.5 border-b border-slate-200">
                 REFERRED BY
               </h2>
               <p className="text-[#333333] text-xs leading-relaxed mb-2">
@@ -286,19 +378,19 @@ export default function GPApplicationWizard({
                 type="text"
                 value={values.referredBy || ""}
                 onChange={(e) => updateValue("referredBy", e.target.value)}
-                className="w-full h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                className="w-full h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
               />
             </div>
 
             {/* PRIMARY CONTACT */}
             <div>
-              <h2 className="text-[#1B365D] font-bold text-xs tracking-wider uppercase mb-1">
+              <h2 className="text-[#1B365D] font-bold text-[13px] tracking-wider uppercase mb-3 pb-1.5 border-b border-slate-200">
                 PRIMARY CONTACT
               </h2>
               <p className="text-[#333333] text-xs leading-relaxed mb-3">
                 Owing to space constraints, only one partner from each fund can attend the RAISE event. This partner
                 will be listed as the attendee, included in the Emerging Manager Database (if you opt-in), and designated
-                as the Presenter (if selected). Please provide the following details for the partner from your firm who will attend.
+                as the Presenter (if selected). Please provide the following details for the partner from your firm to be listed.
               </p>
 
               <div className="space-y-2">
@@ -308,7 +400,7 @@ export default function GPApplicationWizard({
                     type="text"
                     value={values.firstName || ""}
                     onChange={(e) => updateValue("firstName", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.firstName && (
                     <span className="text-[11px] text-rose-600 sm:ml-2">{errors.firstName}</span>
@@ -321,7 +413,7 @@ export default function GPApplicationWizard({
                     type="text"
                     value={values.lastName || ""}
                     onChange={(e) => updateValue("lastName", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.lastName && (
                     <span className="text-[11px] text-rose-600 sm:ml-2">{errors.lastName}</span>
@@ -334,8 +426,9 @@ export default function GPApplicationWizard({
                     type="text"
                     value={values.title || ""}
                     onChange={(e) => updateValue("title", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
+                  {errors.title && <span className="text-[11px] text-rose-600 sm:ml-2">{errors.title}</span>}
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center">
@@ -344,7 +437,7 @@ export default function GPApplicationWizard({
                     type="email"
                     value={values.contactEmail || ""}
                     onChange={(e) => updateValue("contactEmail", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.contactEmail && (
                     <span className="text-[11px] text-rose-600 sm:ml-2">{errors.contactEmail}</span>
@@ -357,7 +450,7 @@ export default function GPApplicationWizard({
                     type="url"
                     value={values.linkedinUrl || ""}
                     onChange={(e) => updateValue("linkedinUrl", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                 </div>
               </div>
@@ -365,7 +458,7 @@ export default function GPApplicationWizard({
 
             {/* COMPANY INFO */}
             <div>
-              <h2 className="text-[#1B365D] font-bold text-xs tracking-wider uppercase mb-2">
+              <h2 className="text-[#1B365D] font-bold text-[13px] tracking-wider uppercase mb-3 pb-1.5 border-b border-slate-200">
                 COMPANY INFO
               </h2>
 
@@ -376,7 +469,7 @@ export default function GPApplicationWizard({
                     type="text"
                     value={values.firmName || ""}
                     onChange={(e) => updateValue("firmName", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.firmName && (
                     <span className="text-[11px] text-rose-600 sm:ml-2">{errors.firmName}</span>
@@ -389,29 +482,30 @@ export default function GPApplicationWizard({
                     type="url"
                     value={values.website || ""}
                     onChange={(e) => updateValue("website", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-start">
                   <div className="w-40 shrink-0">
                     <label className="text-xs text-gray-800 block">Headquarters Location:</label>
-                    <span className="text-[10px] text-gray-500 block leading-tight">(type town below to find)</span>
+                    <span className="text-[10px] text-gray-500 block leading-tight">(type then select from list)</span>
                   </div>
                   <input
                     type="text"
                     placeholder="Enter a location..."
                     value={values.headquarters || ""}
                     onChange={(e) => updateValue("headquarters", e.target.value)}
-                    className="w-full sm:w-72 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
+                  {errors.headquarters && <span className="text-[11px] text-rose-600 sm:ml-2">{errors.headquarters}</span>}
                 </div>
               </div>
             </div>
 
             {/* INVESTING PARTNERS */}
             <div>
-              <h2 className="text-[#1B365D] font-bold text-xs tracking-wider uppercase mb-3">
+              <h2 className="text-[#1B365D] font-bold text-[13px] tracking-wider uppercase mb-3 pb-1.5 border-b border-slate-200">
                 INVESTING PARTNERS
               </h2>
 
@@ -423,15 +517,18 @@ export default function GPApplicationWizard({
                   <select
                     value={values.investorBackground || ""}
                     onChange={(e) => updateValue("investorBackground", e.target.value)}
-                    className="w-full sm:w-64 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-64 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   >
                     <option value="">Please select...</option>
-                    <option value="Angel investors raising a blind pool">Angel investors raising a blind pool</option>
-                    <option value="Experienced fund managers">Experienced fund managers</option>
-                    <option value="Corporate investment professionals">Corporate investment professionals</option>
-                    <option value="Family office investors">Family office investors</option>
+                    <option value="Experienced venture capitalists">Experienced venture capitalists</option>
+                    <option value="Experienced operators or entrepreneurs">Experienced operators or entrepreneurs</option>
+                    <option value="A combination of operators and venture capitalists">A combination of operators and venture capitalists</option>
+                    <option value="Prior Angel investors">Angel investors raising a blind pool</option>
                     <option value="Other">Other</option>
                   </select>
+                  {errors.investorBackground && (
+                    <span className="text-[11px] text-rose-600 sm:ml-2">{errors.investorBackground}</span>
+                  )}
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -441,10 +538,10 @@ export default function GPApplicationWizard({
                   <select
                     value={values.partnerMen || ""}
                     onChange={(e) => updateValue("partnerMen", e.target.value)}
-                    className="w-full sm:w-64 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-64 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   >
                     <option value="">Please select...</option>
-                    {["0", "1", "2", "3", "4", "5+"].map((n) => (
+                    {["0", "1", "2", "3", "4", "5", "6+"].map((n) => (
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
@@ -457,10 +554,10 @@ export default function GPApplicationWizard({
                   <select
                     value={values.partnerWomen || ""}
                     onChange={(e) => updateValue("partnerWomen", e.target.value)}
-                    className="w-full sm:w-64 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-64 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   >
                     <option value="">Please select...</option>
-                    {["0", "1", "2", "3", "4", "5+"].map((n) => (
+                    {["0", "1", "2", "3", "4", "5", "6+"].map((n) => (
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
@@ -473,20 +570,25 @@ export default function GPApplicationWizard({
                   <select
                     value={values.partnerOtherGender || ""}
                     onChange={(e) => updateValue("partnerOtherGender", e.target.value)}
-                    className="w-full sm:w-64 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                    className="w-full sm:w-64 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   >
                     <option value="">Please select...</option>
-                    {["0", "1", "2", "3", "4", "5+"].map((n) => (
+                    {["0", "1", "2", "3", "4", "5", "6+"].map((n) => (
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
+              {(errors.partnerMen || errors.partnerWomen || errors.partnerOtherGender) && (
+                <p className="text-[11px] text-rose-600 -mt-3 mb-4">Team gender composition is required.</p>
+              )}
+
               {/* Racial and ethnic identities checkboxes */}
               <div className="mb-5">
                 <p className="text-xs text-gray-800 mb-2">
-                  Please share the racial and ethnic identities of your investing partners. (check all that apply)
+                  Please share the racial and ethnic identities of your investing partners.{" "}
+                  <span className="text-[10px] text-gray-500">(check all that apply)</span>
                 </p>
                 <div className="space-y-1.5 pl-1 text-xs text-gray-800">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -515,7 +617,7 @@ export default function GPApplicationWizard({
                         "American Indian or Native Alaskan",
                         "Middle Eastern or North African",
                         "Asian or Asian American",
-                        "Hispanic, Latino, or Spanish Origin",
+                        "Hispanic, Latinx, or Spanish Origin",
                         "Native Hawaiian or Pacific Islander",
                       ].map((eth) => (
                         <label key={eth} className="flex items-center gap-2 cursor-pointer text-gray-700">
@@ -568,7 +670,7 @@ export default function GPApplicationWizard({
                         max="100"
                         value={values.ownershipMen || ""}
                         onChange={(e) => updateValue("ownershipMen", e.target.value)}
-                        className="w-16 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                        className="w-16 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                       />
                       <span className="text-xs text-gray-700">%</span>
                     </div>
@@ -583,7 +685,7 @@ export default function GPApplicationWizard({
                         max="100"
                         value={values.ownershipWomen || ""}
                         onChange={(e) => updateValue("ownershipWomen", e.target.value)}
-                        className="w-16 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                        className="w-16 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                       />
                       <span className="text-xs text-gray-700">%</span>
                     </div>
@@ -598,12 +700,79 @@ export default function GPApplicationWizard({
                         max="100"
                         value={values.ownershipOtherGender || ""}
                         onChange={(e) => updateValue("ownershipOtherGender", e.target.value)}
-                        className="w-16 h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
+                        className="w-16 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                       />
                       <span className="text-xs text-gray-700">%</span>
                     </div>
-                    <label className="text-xs text-gray-800">Another gender identity</label>
+                    <label className="text-xs text-gray-800">Other gender identity</label>
                   </div>
+                </div>
+              </div>
+
+              {errors.ownershipMen && (
+                <p className="text-[11px] text-rose-600 -mt-4 mb-4">{errors.ownershipMen}</p>
+              )}
+
+              {/* Ownership percentage by race / ethnicity */}
+              <div className="mb-6">
+                <p className="text-xs text-gray-800 mb-2">
+                  What percentage of your firm (based on total AUM) is owned by:{" "}
+                  <span className="text-[#1F5FBF] cursor-pointer hover:underline">[who can see this?]</span>
+                </p>
+                <div className="space-y-2 pl-1">
+                  {[
+                    { key: "ownershipWhite", label: "White" },
+                    { key: "ownershipBipoc", label: "BIPOC (based on categories above)" },
+                    { key: "ownershipOtherRace", label: "Other racial or ethnic group" },
+                  ].map((row) => (
+                    <div key={row.key} className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={values[row.key] || ""}
+                          onChange={(e) => updateValue(row.key, e.target.value)}
+                          className="w-16 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
+                        />
+                        <span className="text-xs text-gray-700">%</span>
+                      </div>
+                      <label className="text-xs text-gray-800">{row.label}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {errors.ownershipWhite && (
+                <p className="text-[11px] text-rose-600 -mt-4 mb-4">{errors.ownershipWhite}</p>
+              )}
+
+              {/* Team also includes */}
+              <div className="mb-6">
+                <p className="text-xs text-gray-800 mb-2">
+                  My team also includes:{" "}
+                  <span className="text-[10px] text-gray-500">(check all that apply)</span>
+                </p>
+                <div className="space-y-1.5 pl-1 text-xs text-gray-800">
+                  {["Military Veterans", "LGBTQ+"].map((item) => {
+                    const selected = (values.teamAlsoIncludes || "").split(",").filter(Boolean);
+                    return (
+                      <label key={item} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(item)}
+                          onChange={(e) =>
+                            updateValue(
+                              "teamAlsoIncludes",
+                              (e.target.checked ? [...selected, item] : selected.filter((x) => x !== item)).join(",")
+                            )
+                          }
+                          className="h-3.5 w-3.5 accent-[#1B365D]"
+                        />
+                        <span>{item}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -612,144 +781,28 @@ export default function GPApplicationWizard({
 
         {/* ==================== PAGE 2 OF 5 ==================== */}
         {currentStep === 1 && (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-[#1B365D] font-bold text-sm tracking-wide uppercase mb-1">
-                COMPANY FOCUS & HISTORY
-              </h1>
-              <p className="text-[#333333] text-xs leading-relaxed">
-                Provide detailed information about your firm&apos;s strategy and track record.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {step2Fields.map((field) => (
-                <div key={field.name} className="space-y-1.5">
-                  {field.section && (
-                    <div className="pt-3 pb-1 border-b border-gray-200">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#1B365D]">
-                        {field.section}
-                      </h3>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                    <div className="sm:max-w-md">
-                      <label className="text-xs font-medium text-gray-800 block">
-                        {field.label}
-                      </label>
-                      {field.helpText && (
-                        <span className="text-[10px] text-gray-500 block">{field.helpText}</span>
-                      )}
-                    </div>
-
-                    <div className="w-full sm:w-72">
-                      {field.type === "textarea" ? (
-                        <textarea
-                          rows={3}
-                          value={values[field.name] || ""}
-                          onChange={(e) => updateValue(field.name, e.target.value)}
-                          placeholder={field.placeholder}
-                          className="w-full text-xs border border-gray-400 rounded-[2px] p-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
-                        />
-                      ) : field.type === "select" ? (
-                        <select
-                          value={values[field.name] || ""}
-                          onChange={(e) => updateValue(field.name, e.target.value)}
-                          className="w-full h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
-                        >
-                          <option value="">Please select...</option>
-                          {field.options?.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      ) : field.type === "checks" ? (
-                        <div className="space-y-1 text-xs">
-                          {field.options?.map((opt) => {
-                            const arr = (values[field.name] || "").split(",").filter(Boolean);
-                            return (
-                              <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={arr.includes(opt)}
-                                  onChange={(e) =>
-                                    updateValue(
-                                      field.name,
-                                      e.target.checked
-                                        ? [...arr, opt].join(",")
-                                        : arr.filter((x) => x !== opt).join(",")
-                                    )
-                                  }
-                                  className="h-3.5 w-3.5 accent-[#1B365D]"
-                                />
-                                <span>{opt}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <input
-                          type={field.type || "text"}
-                          value={values[field.name] || ""}
-                          onChange={(e) => updateValue(field.name, e.target.value)}
-                          placeholder={field.placeholder}
-                          className="w-full h-[26px] text-xs border border-gray-400 rounded-[2px] px-2 bg-white text-gray-800 focus:outline-none focus:border-[#1B365D]"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <CompanyFocusStep values={values} errors={errors} onChange={updateValue} />
         )}
 
         {/* ==================== PAGE 3 OF 5 ==================== */}
         {currentStep === 2 && (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-[#1B365D] font-bold text-sm tracking-wide uppercase mb-1">
-                DECK & TRACK RECORD
-              </h1>
-              <p className="text-[#333333] text-xs leading-relaxed">
-                Provide your pitch deck and historical performance data for the Selection Committee.
-              </p>
-            </div>
-            <DeckTrackRecordStep value={trackRecord} onChange={setTrackRecord} />
-          </div>
+          <DeckTrackRecordStep value={trackRecord} onChange={setTrackRecord} deckError={errors.deck} />
         )}
 
         {/* ==================== PAGE 4 OF 5 ==================== */}
         {currentStep === 3 && (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-[#1B365D] font-bold text-sm tracking-wide uppercase mb-1">
-                PORTFOLIO HIGHLIGHTS
-              </h1>
-              <p className="text-[#333333] text-xs leading-relaxed">
-                Showcase up to three standout portfolio companies to highlight your investment strategy and performance.
-              </p>
-            </div>
-            <PortfolioHighlightsStep
-              companies={portfolioCompanies}
-              onChange={setPortfolioCompanies}
-            />
-          </div>
+          <PortfolioHighlightsStep companies={portfolioCompanies} onChange={setPortfolioCompanies} />
         )}
 
         {/* ==================== PAGE 5 OF 5 ==================== */}
         {currentStep === 4 && (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-[#1B365D] font-bold text-sm tracking-wide uppercase mb-1">
-                REVIEW & SUBMISSION
-              </h1>
-              <p className="text-[#333333] text-xs leading-relaxed">
-                Review your profile information and confirm it is ready to submit to the Selection Committee.
-              </p>
-            </div>
-            <FinalSubmissionStep value={finalSubmission} onChange={setFinalSubmission} />
-          </div>
+          <FinalSubmissionStep
+            value={finalSubmission}
+            onChange={setFinalSubmission}
+            companyName={values.firmName || company || ""}
+            contactName={`${values.firstName || ""} ${values.lastName || ""}`.trim()}
+            errors={errors}
+          />
         )}
 
         {/* ==================== BOTTOM ACTION BUTTONS ==================== */}
@@ -759,15 +812,15 @@ export default function GPApplicationWizard({
               <button
                 type="button"
                 onClick={handleBack}
-                className="rounded-[2px] border border-gray-400 bg-white px-4 py-1.5 text-xs text-gray-700 hover:bg-gray-50 mr-2"
+                className="rounded-md border border-slate-300 bg-white px-5 py-2 text-xs font-semibold uppercase text-slate-700 shadow-sm transition hover:bg-slate-50 mr-2"
               >
-                &lt; Back
+                Back
               </button>
             )}
             <button
               type="button"
               onClick={handleSaveForLater}
-              className="rounded-[2px] border border-gray-400 bg-gray-100 px-4 py-1.5 text-xs font-normal text-gray-800 hover:bg-gray-200"
+              className="rounded-md border border-slate-300 bg-slate-100 px-5 py-2 text-xs font-semibold uppercase text-slate-700 shadow-sm transition hover:bg-slate-200"
             >
               Save for Later
             </button>
@@ -776,9 +829,13 @@ export default function GPApplicationWizard({
           <div>
             <button
               type="submit"
-              className="rounded-[2px] bg-[#2d9ab7] px-6 py-1.5 text-xs font-semibold text-white hover:bg-[#258399] shadow-sm"
+              className="rounded-md bg-[#2d9ab7] px-7 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-[#258399] focus:outline-none focus:ring-2 focus:ring-[#2d9ab7]/40"
             >
-              {currentStep === 4 ? "Submit Application" : "Next >"}
+              {currentStep < 4
+                ? "Save & Continue"
+                : finalSubmission.publishOption === "Yes"
+                  ? "Preview Profile"
+                  : "Submit Application"}
             </button>
           </div>
         </div>
