@@ -67,3 +67,18 @@ export type FinalSubmissionData = {
   executiveSummary: string;
   shareDeck: "" | "Yes" | "No";
 };
+
+// Resolves the event name from the different shapes the API can return it in.
+export function getEventName(application: GPApplication | null | undefined): string {
+  if (!application) return "";
+  const relation = Array.isArray(application.events) ? application.events[0] : application.events;
+  const value = application.event;
+  const fromEvent = Array.isArray(value)
+    ? value[0]?.name
+    : value && typeof value === "object"
+      ? value.name
+      : typeof value === "string" && !/^[0-9a-f-]{32,}$/i.test(value)
+        ? value
+        : undefined;
+  return application.event_name || application.eventName || relation?.name || fromEvent || "";
+}

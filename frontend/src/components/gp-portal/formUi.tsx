@@ -38,7 +38,7 @@ export function Hint({ children }: { children: ReactNode }) {
 
 export function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <span className="text-[11px] text-rose-600">{message}</span>;
+  return <span className="text-[11px] text-red-600">{message}</span>;
 }
 
 type Option = string | { label: string; value: string };
@@ -85,7 +85,7 @@ export function QuestionRow({
         <div className="text-xs text-gray-800 sm:max-w-xl">{question}</div>
         <div className="shrink-0">{children}</div>
       </div>
-      <FieldError message={error} />
+      {error && <div className="text-right"><FieldError message={error} /></div>}
     </div>
   );
 }
@@ -101,11 +101,11 @@ export function LabelRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
       <label className="w-52 text-xs text-gray-800 shrink-0">{label}</label>
       {children}
       {error && (
-        <span className="text-[11px] text-rose-600 sm:ml-2">{error}</span>
+        <span className="basis-full text-[11px] text-red-600 sm:pl-52">{error}</span>
       )}
     </div>
   );

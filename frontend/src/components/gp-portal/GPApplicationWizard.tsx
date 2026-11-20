@@ -14,6 +14,7 @@ import type { FinalSubmissionData, PortfolioCompany, TrackRecordData } from "./t
 type GPApplicationWizardProps = {
   applicantName: string;
   company?: string;
+  eventName?: string;
   email: string;
   onGoDashboard: () => void;
 };
@@ -21,6 +22,7 @@ type GPApplicationWizardProps = {
 export default function GPApplicationWizard({
   applicantName,
   company,
+  eventName,
   email,
   onGoDashboard,
 }: GPApplicationWizardProps) {
@@ -77,10 +79,17 @@ export default function GPApplicationWizard({
   const [submitted, setSubmitted] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [errorScrollTick, setErrorScrollTick] = useState(0);
+
+  // After a failed validation, scroll the first error message into view
+  useEffect(() => {
+    if (errorScrollTick === 0) return;
+    document.querySelector<HTMLElement>("form .text-red-600")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [errorScrollTick]);
 
   const [trackRecord, setTrackRecord] = useState<TrackRecordData>(() => ({
     deckFileName: "",
-    performanceOption: "",
+    performanceOption: "Operating Firm",
     numberOfFunds: "",
     funds: Array.from({ length: 10 }, (_, i) => emptyFund(`fund-${i}`)),
     supplementalInfo: "",
@@ -91,7 +100,7 @@ export default function GPApplicationWizard({
   );
 
   const [finalSubmission, setFinalSubmission] = useState<FinalSubmissionData>({
-    publishOption: "",
+    publishOption: "Yes",
     companyLogoName: "",
     headshotName: "",
     headline: "",
@@ -162,13 +171,13 @@ export default function GPApplicationWizard({
   const validateStep = () => {
     const nextErrors: Record<string, string> = {};
     if (currentStep === 0) {
-      if (!values.firstName?.trim()) nextErrors.firstName = "First name is required";
-      if (!values.lastName?.trim()) nextErrors.lastName = "Last name is required";
-      if (!values.contactEmail?.trim()) nextErrors.contactEmail = "Email is required";
+      if (!values.firstName?.trim()) nextErrors.firstName = "First Name is required.";
+      if (!values.lastName?.trim()) nextErrors.lastName = "Last Name is required.";
+      if (!values.contactEmail?.trim()) nextErrors.contactEmail = "Email is required.";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.contactEmail)) {
-        nextErrors.contactEmail = "Enter a valid email address";
+        nextErrors.contactEmail = "Enter a valid email address.";
       }
-      if (!values.firmName?.trim()) nextErrors.firmName = "Company name is required";
+      if (!values.firmName?.trim()) nextErrors.firmName = "Company Name is required.";
       if (!values.presenterOption) nextErrors.presenterOption = "Presenter option choice is required.";
       if (!values.title?.trim()) nextErrors.title = "Title is required.";
       if (!values.headquarters?.trim()) nextErrors.headquarters = "Headquarters location is required.";
@@ -192,6 +201,15 @@ export default function GPApplicationWizard({
     }
 
     if (currentStep === 1) {
+      if (!values.investmentThesis) nextErrors.investmentThesis = "Selecting a thesis is required.";
+      if (!values.hasGeoFocus) nextErrors.hasGeoFocus = "Specifying geographic focus is required.";
+      if (!values.firstInvestmentYear) nextErrors.firstInvestmentYear = "First investment year is required.";
+      if (!values.blindPoolFunds) nextErrors.blindPoolFunds = "Number of blind pool funds is required.";
+      if (!values.spvs) nextErrors.spvs = "Number of SPVs is required.";
+      if (!values.fundraisingTiming) nextErrors.fundraisingTiming = "Market status is required.";
+      for (const key of ["serviceLegal", "serviceFundAdmin", "serviceTax", "serviceAudit", "serviceCompliance", "serviceInsurance"]) {
+        if (!values[key]?.trim()) nextErrors[key] = "Please put a vendor's name, TBD, or Internal.";
+      }
       const isThematic = values.investmentThesis === "Investment Theme";
       const themes = toList(values.thematicFocus);
       if (isThematic && (themes.length < 1 || themes.length > 4)) {
@@ -207,16 +225,18 @@ export default function GPApplicationWizard({
       }
     }
 
-    if (currentStep === 2 && !trackRecord.deckFileName) {
-      nextErrors.deck = "All applications must contain a fundraising or marketing deck.";
+    if (currentStep === 2) {
+      if (!trackRecord.deckFileName) nextErrors.deck = "All applications must contain a fundraising or marketing deck.";
+      if (!trackRecord.numberOfFunds) nextErrors.numberOfFunds = "Your track record content selection is required.";
     }
 
     if (currentStep === 4) {
       if (!finalSubmission.publishOption) {
         nextErrors.publishOption = "Emerging Manager Database choice is required.";
       }
-      if (finalSubmission.publishOption === "Yes" && !finalSubmission.shareDeck) {
-        nextErrors.shareDeck = "Deck share settings required.";
+      if (finalSubmission.publishOption === "Yes") {
+        if (!finalSubmission.headline.trim()) nextErrors.headline = "Your headline is required.";
+        if (!finalSubmission.shareDeck) nextErrors.shareDeck = "Deck share settings required.";
       }
     }
     setErrors(nextErrors);
@@ -225,7 +245,10 @@ export default function GPApplicationWizard({
 
   const handleNext = (e: FormEvent) => {
     e.preventDefault();
-    if (!validateStep()) return;
+    if (!validateStep()) {
+      setErrorScrollTick((tick) => tick + 1);
+      return;
+    }
     if (currentStep === 4) {
       if (finalSubmission.publishOption === "Yes") {
         // Publishing to the Emerging Manager Database goes through the Profile Review page first
@@ -276,7 +299,7 @@ export default function GPApplicationWizard({
         </h2>
         <p className="mx-auto mt-2 max-w-xl text-xs leading-relaxed text-slate-600">
           Thank you for your submission, <strong className="text-[#1B365D]">{values.firmName || company}</strong>.
-          The Selection Committee will review your profile for the 2026 RAISE Global Summit.
+          The Selection Committee will review your profile for {eventName || "the event"}.
         </p>
 
         <div className="mt-8 flex justify-center gap-3">
@@ -331,7 +354,7 @@ export default function GPApplicationWizard({
                 WELCOME {displayCompany}
               </h1>
               <p className="text-[#333333] text-xs leading-relaxed">
-                Welcome! Complete this form to create and edit your 2026 RAISE Global Summit profile.
+                Welcome! Complete this form to create and edit your {eventName || "RAISE"} profile.
                 You may choose to complete portions now and return later to finish by clicking the
                 &apos;Save for Later&apos; button below.
               </p>
@@ -359,7 +382,7 @@ export default function GPApplicationWizard({
                     <option value="No">No - Not this year</option>
                   </select>
                   {errors.presenterOption && (
-                    <span className="text-[11px] text-rose-600 ml-2">{errors.presenterOption}</span>
+                    <span className="mt-1 block text-right text-[11px] text-red-600">{errors.presenterOption}</span>
                   )}
                 </div>
               </div>
@@ -394,7 +417,7 @@ export default function GPApplicationWizard({
               </p>
 
               <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
                   <label className="w-40 text-xs text-gray-800 shrink-0">First Name:</label>
                   <input
                     type="text"
@@ -403,11 +426,11 @@ export default function GPApplicationWizard({
                     className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.firstName && (
-                    <span className="text-[11px] text-rose-600 sm:ml-2">{errors.firstName}</span>
+                    <span className="basis-full text-[11px] text-red-600 sm:pl-40">{errors.firstName}</span>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
                   <label className="w-40 text-xs text-gray-800 shrink-0">Last Name:</label>
                   <input
                     type="text"
@@ -416,11 +439,11 @@ export default function GPApplicationWizard({
                     className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.lastName && (
-                    <span className="text-[11px] text-rose-600 sm:ml-2">{errors.lastName}</span>
+                    <span className="basis-full text-[11px] text-red-600 sm:pl-40">{errors.lastName}</span>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
                   <label className="w-40 text-xs text-gray-800 shrink-0">Title:</label>
                   <input
                     type="text"
@@ -428,10 +451,10 @@ export default function GPApplicationWizard({
                     onChange={(e) => updateValue("title", e.target.value)}
                     className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
-                  {errors.title && <span className="text-[11px] text-rose-600 sm:ml-2">{errors.title}</span>}
+                  {errors.title && <span className="basis-full text-[11px] text-red-600 sm:pl-40">{errors.title}</span>}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
                   <label className="w-40 text-xs text-gray-800 shrink-0">Email Address:</label>
                   <input
                     type="email"
@@ -440,11 +463,11 @@ export default function GPApplicationWizard({
                     className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.contactEmail && (
-                    <span className="text-[11px] text-rose-600 sm:ml-2">{errors.contactEmail}</span>
+                    <span className="basis-full text-[11px] text-red-600 sm:pl-40">{errors.contactEmail}</span>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
                   <label className="w-40 text-xs text-gray-800 shrink-0">LinkedIn Page URL:</label>
                   <input
                     type="url"
@@ -463,7 +486,7 @@ export default function GPApplicationWizard({
               </h2>
 
               <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
                   <label className="w-40 text-xs text-gray-800 shrink-0">Company Name:</label>
                   <input
                     type="text"
@@ -472,11 +495,11 @@ export default function GPApplicationWizard({
                     className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
                   {errors.firmName && (
-                    <span className="text-[11px] text-rose-600 sm:ml-2">{errors.firmName}</span>
+                    <span className="basis-full text-[11px] text-red-600 sm:pl-40">{errors.firmName}</span>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center">
                   <label className="w-40 text-xs text-gray-800 shrink-0">Company Website:</label>
                   <input
                     type="url"
@@ -486,7 +509,7 @@ export default function GPApplicationWizard({
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-start">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start">
                   <div className="w-40 shrink-0">
                     <label className="text-xs text-gray-800 block">Headquarters Location:</label>
                     <span className="text-[10px] text-gray-500 block leading-tight">(type then select from list)</span>
@@ -498,7 +521,7 @@ export default function GPApplicationWizard({
                     onChange={(e) => updateValue("headquarters", e.target.value)}
                     className="w-full sm:w-72 h-9 text-[13px] border border-slate-300 rounded-md px-3 bg-white text-slate-800 shadow-sm transition focus:outline-none focus:border-[#2d9ab7] focus:ring-2 focus:ring-[#2d9ab7]/20"
                   />
-                  {errors.headquarters && <span className="text-[11px] text-rose-600 sm:ml-2">{errors.headquarters}</span>}
+                  {errors.headquarters && <span className="basis-full text-[11px] text-red-600 sm:pl-40">{errors.headquarters}</span>}
                 </div>
               </div>
             </div>
@@ -510,7 +533,7 @@ export default function GPApplicationWizard({
               </h2>
 
               <div className="space-y-3 mb-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2">
                   <label className="text-xs text-gray-800 sm:max-w-md">
                     How would you characterize the background of your investing partners?
                   </label>
@@ -527,11 +550,11 @@ export default function GPApplicationWizard({
                     <option value="Other">Other</option>
                   </select>
                   {errors.investorBackground && (
-                    <span className="text-[11px] text-rose-600 sm:ml-2">{errors.investorBackground}</span>
+                    <span className="basis-full text-right text-[11px] text-red-600">{errors.investorBackground}</span>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2">
                   <label className="text-xs text-gray-800">
                     How many investing partners are men?
                   </label>
@@ -545,9 +568,12 @@ export default function GPApplicationWizard({
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
+                  {errors.partnerMen && (
+                    <span className="basis-full text-right text-[11px] text-red-600">{errors.partnerMen}</span>
+                  )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2">
                   <label className="text-xs text-gray-800">
                     How many investing partners are women?
                   </label>
@@ -561,9 +587,12 @@ export default function GPApplicationWizard({
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
+                  {errors.partnerWomen && (
+                    <span className="basis-full text-right text-[11px] text-red-600">{errors.partnerWomen}</span>
+                  )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2">
                   <label className="text-xs text-gray-800">
                     How many investing partners are another gender identity?
                   </label>
@@ -577,12 +606,12 @@ export default function GPApplicationWizard({
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
+                  {errors.partnerOtherGender && (
+                    <span className="basis-full text-right text-[11px] text-red-600">{errors.partnerOtherGender}</span>
+                  )}
                 </div>
               </div>
 
-              {(errors.partnerMen || errors.partnerWomen || errors.partnerOtherGender) && (
-                <p className="text-[11px] text-rose-600 -mt-3 mb-4">Team gender composition is required.</p>
-              )}
 
               {/* Racial and ethnic identities checkboxes */}
               <div className="mb-5">
@@ -710,7 +739,7 @@ export default function GPApplicationWizard({
               </div>
 
               {errors.ownershipMen && (
-                <p className="text-[11px] text-rose-600 -mt-4 mb-4">{errors.ownershipMen}</p>
+                <p className="text-[11px] text-red-600 -mt-4 mb-4">{errors.ownershipMen}</p>
               )}
 
               {/* Ownership percentage by race / ethnicity */}
@@ -744,7 +773,7 @@ export default function GPApplicationWizard({
               </div>
 
               {errors.ownershipWhite && (
-                <p className="text-[11px] text-rose-600 -mt-4 mb-4">{errors.ownershipWhite}</p>
+                <p className="text-[11px] text-red-600 -mt-4 mb-4">{errors.ownershipWhite}</p>
               )}
 
               {/* Team also includes */}
@@ -786,7 +815,19 @@ export default function GPApplicationWizard({
 
         {/* ==================== PAGE 3 OF 5 ==================== */}
         {currentStep === 2 && (
-          <DeckTrackRecordStep value={trackRecord} onChange={setTrackRecord} deckError={errors.deck} />
+          <DeckTrackRecordStep
+            value={trackRecord}
+            onChange={(next) => {
+              setTrackRecord(next);
+              setErrors((current) => ({
+                ...current,
+                deck: next.deckFileName ? "" : current.deck,
+                numberOfFunds: next.numberOfFunds ? "" : current.numberOfFunds,
+              }));
+            }}
+            deckError={errors.deck}
+            countError={errors.numberOfFunds}
+          />
         )}
 
         {/* ==================== PAGE 4 OF 5 ==================== */}
@@ -798,7 +839,16 @@ export default function GPApplicationWizard({
         {currentStep === 4 && (
           <FinalSubmissionStep
             value={finalSubmission}
-            onChange={setFinalSubmission}
+            onChange={(next) => {
+              setFinalSubmission(next);
+              // clear an error as soon as its field is filled in
+              setErrors((current) => ({
+                ...current,
+                publishOption: next.publishOption ? "" : current.publishOption,
+                headline: next.headline.trim() ? "" : current.headline,
+                shareDeck: next.shareDeck ? "" : current.shareDeck,
+              }));
+            }}
             companyName={values.firmName || company || ""}
             contactName={`${values.firstName || ""} ${values.lastName || ""}`.trim()}
             errors={errors}

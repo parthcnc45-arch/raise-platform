@@ -6,6 +6,7 @@ import { apiClient } from "@/utils/apiClient";
 import GPPortalHeader from "@/components/gp-portal/GPPortalHeader";
 import GPPortalFooter from "@/components/gp-portal/GPPortalFooter";
 import type { GPApplication } from "@/components/gp-portal/types";
+import { getEventName } from "@/components/gp-portal/types";
 import { GPPortalProvider } from "@/components/gp-portal/GPPortalContext";
 
 function LoadingView() {
@@ -93,6 +94,7 @@ function GPPortalLayoutContent({ children }: { children: React.ReactNode }) {
         <GPPortalHeader
           fullName={fullName}
           company={application?.company}
+          eventName={getEventName(application)}
           token={token}
           activePage={activePage}
           onSignOut={signOut}

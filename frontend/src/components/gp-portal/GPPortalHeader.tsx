@@ -8,6 +8,7 @@ import { X, HelpCircle, LogOut, LayoutDashboard, FileText } from "lucide-react";
 type GPPortalHeaderProps = {
   fullName: string;
   company?: string;
+  eventName?: string;
   token: string;
   activePage: "application" | "overview";
   onSignOut: () => void;
@@ -16,6 +17,7 @@ type GPPortalHeaderProps = {
 export default function GPPortalHeader({
   fullName,
   company,
+  eventName,
   token,
   activePage,
   onSignOut,
@@ -115,10 +117,10 @@ export default function GPPortalHeader({
             <div className="mt-4 space-y-4 text-xs leading-relaxed text-slate-700">
               <div>
                 <h3 className="font-bold text-slate-900">
-                  1. What is the 2026 RAISE Global Summit?
+                  1. What is {eventName || "the RAISE Global Summit"}?
                 </h3>
                 <p className="mt-1">
-                  The RAISE Global Summit is an exclusive gathering connecting emerging
+                  {eventName || "The RAISE Global Summit"} is an exclusive gathering connecting emerging
                   fund managers with institutional Limited Partners (LPs), family offices,
                   and investment professionals.
                 </p>

@@ -181,14 +181,14 @@ export default function CompanyFocusStep({ values, errors, onChange }: CompanyFo
         </QuestionRow>
 
         {values.hasGeoFocus === "Yes" && (
-          <LabelRow label="What are your geographic areas of focus?" error={errors.geoFocus}>
+          <QuestionRow question="What are your geographic areas of focus?" error={errors.geoFocus}>
             <input
               type="text"
               value={values.geoFocus || ""}
               onChange={(e) => onChange("geoFocus", e.target.value)}
               className={`${inputCls} w-full sm:w-72`}
             />
-          </LabelRow>
+          </QuestionRow>
         )}
       </section>
 
@@ -214,7 +214,7 @@ export default function CompanyFocusStep({ values, errors, onChange }: CompanyFo
           />
         </QuestionRow>
 
-        <QuestionRow question="During what year did your current firm make its first investment?">
+        <QuestionRow question="During what year did your current firm make its first investment?" error={errors.firstInvestmentYear}>
           <SelectInput
             value={values.firstInvestmentYear || ""}
             onChange={(v) => onChange("firstInvestmentYear", v)}
@@ -229,6 +229,7 @@ export default function CompanyFocusStep({ values, errors, onChange }: CompanyFo
               closed.
             </>
           }
+          error={errors.blindPoolFunds}
         >
           <SelectInput
             value={values.blindPoolFunds || ""}
@@ -244,6 +245,7 @@ export default function CompanyFocusStep({ values, errors, onChange }: CompanyFo
               invested?
             </>
           }
+          error={errors.spvs}
         >
           <SelectInput value={values.spvs || ""} onChange={(v) => onChange("spvs", v)} options={SPV_OPTIONS} />
         </QuestionRow>
@@ -253,7 +255,7 @@ export default function CompanyFocusStep({ values, errors, onChange }: CompanyFo
       <section className="space-y-4">
         <SectionHeading>FUNDRAISING</SectionHeading>
 
-        <QuestionRow question="When do you expect to be fundraising?">
+        <QuestionRow question="When do you expect to be fundraising?" error={errors.fundraisingTiming}>
           <SelectInput
             value={values.fundraisingTiming || ""}
             onChange={(v) => onChange("fundraisingTiming", v)}
@@ -309,7 +311,7 @@ export default function CompanyFocusStep({ values, errors, onChange }: CompanyFo
 
         <div className="space-y-2">
           {SERVICE_PROVIDERS.map((row) => (
-            <LabelRow key={row.key} label={row.label}>
+            <LabelRow key={row.key} label={row.label} error={errors[row.key]}>
               <input
                 type="text"
                 value={values[row.key] || ""}

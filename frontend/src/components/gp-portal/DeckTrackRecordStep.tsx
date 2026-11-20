@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import PerformanceMetricsModal from "./PerformanceMetricsModal";
 import {
   BodyText,
@@ -18,6 +18,7 @@ type DeckTrackRecordStepProps = {
   value: TrackRecordData;
   onChange: (next: TrackRecordData) => void;
   deckError?: string;
+  countError?: string;
 };
 
 const FUND_TYPES = [
@@ -58,15 +59,61 @@ const fundFields: Array<{ key: keyof TrackRecordFund; label: string }> = [
   { key: "netIrr", label: "Net IRR (%):" },
 ];
 
-export default function DeckTrackRecordStep({ value, onChange, deckError }: DeckTrackRecordStepProps) {
+// Local-only upload simulation: the file is not sent anywhere yet, but the progress UI matches the live portal.
+type UploadState = { fileName: string; total: number; loaded: number; speed: number };
+
+const formatBytes = (bytes: number) => {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
+
+export default function DeckTrackRecordStep({ value, onChange, deckError, countError }: DeckTrackRecordStepProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [metricsOpen, setMetricsOpen] = useState(false);
+  const [upload, setUpload] = useState<UploadState | null>(null);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Always points at the latest props so the timer callback never uses stale data
+  const latest = useRef({ value, onChange });
+  useEffect(() => {
+    latest.current = { value, onChange };
+  });
+
+  const stopTimer = () => {
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => stopTimer, []);
+
+  const startUpload = (file: File) => {
+    stopTimer();
+    // Simulated transfer takes between 2 and 8 seconds depending on the file size
+    const seconds = Math.min(8, Math.max(2, file.size / (1024 * 1024)));
+    const speed = file.size / seconds;
+    const startedAt = Date.now();
+    setUpload({ fileName: file.name, total: file.size, loaded: 0, speed });
+
+    timer.current = setInterval(() => {
+      const loaded = Math.min(file.size, ((Date.now() - startedAt) / 1000) * speed);
+      if (loaded >= file.size) {
+        stopTimer();
+        setUpload(null);
+        latest.current.onChange({ ...latest.current.value, deckFileName: file.name });
+      } else {
+        setUpload({ fileName: file.name, total: file.size, loaded, speed });
+      }
+    }, 100);
+  };
+
+  const cancelUpload = () => {
+    stopTimer();
+    setUpload(null);
+  };
 
   const rowCount = /^\d+$/.test(value.numberOfFunds) ? Number(value.numberOfFunds) : 0;
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) onChange({ ...value, deckFileName: file.name });
+    if (file) startUpload(file);
     event.target.value = "";
   };
 
@@ -90,6 +137,8 @@ export default function DeckTrackRecordStep({ value, onChange, deckError }: Deck
           you are not actively fundraising, upload your most recent marketing deck or your most recent investor
           update.
         </BodyText>
+
+        <FieldError message={deckError} />
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <span className="text-xs text-gray-800">Deck Filename:</span>
@@ -120,12 +169,38 @@ export default function DeckTrackRecordStep({ value, onChange, deckError }: Deck
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            className="rounded-md bg-[#2d9ab7] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-[#258399]"
+            disabled={!!upload}
+            className="rounded-md bg-[#2d9ab7] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-[#258399] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Upload Deck
           </button>
         </div>
-        <FieldError message={deckError} />
+
+        {upload && (
+          <div className="space-y-1.5 pt-1" role="status" aria-live="polite">
+            <div className="relative h-4 w-full max-w-md overflow-hidden rounded-sm border border-slate-200 bg-slate-100">
+              <div
+                className="h-full bg-[#2a5d93] transition-[width] duration-100"
+                style={{ width: `${Math.round((upload.loaded / upload.total) * 100)}%` }}
+              />
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-800">
+                {Math.round((upload.loaded / upload.total) * 100)}%
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-700">
+              Uploading {upload.fileName}. {formatBytes(upload.loaded)} of {formatBytes(upload.total)} at{" "}
+              {Math.round(upload.speed / 1024)}KB/s;{" "}
+              {Math.max(1, Math.ceil((upload.total - upload.loaded) / upload.speed))} seconds remaining
+            </p>
+            <button
+              type="button"
+              onClick={cancelUpload}
+              className="rounded-md bg-[#2a5d93] px-5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#1B365D]"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </section>
 
       {/* TRACK RECORD */}
@@ -171,6 +246,7 @@ export default function DeckTrackRecordStep({ value, onChange, deckError }: Deck
             options={TRACK_RECORD_COUNTS}
           />
         </div>
+        {countError && <div className="text-right"><FieldError message={countError} /></div>}
 
         {rowCount > 0 && (
           <div className="space-y-4 pt-2">

@@ -189,14 +189,21 @@ export default function FinalSubmissionStep({
               Your headline is the distilled essence of who you are and what you do. In 20 words or less convey to
               LPs why they should open and look at your profile.
             </BodyText>
-            <div className="flex flex-col sm:flex-row sm:items-center">
-              <label className="w-24 text-xs text-gray-800 shrink-0">Headline:</label>
-              <input
-                type="text"
-                value={value.headline}
-                onChange={(e) => onChange({ ...value, headline: e.target.value })}
-                className={`${inputCls} w-full`}
-              />
+            <div className="space-y-1">
+              <div className="flex flex-col sm:flex-row sm:items-center">
+                <label className="w-24 text-xs text-gray-800 shrink-0">Headline:</label>
+                <input
+                  type="text"
+                  value={value.headline}
+                  onChange={(e) => onChange({ ...value, headline: e.target.value })}
+                  className={`${inputCls} w-full`}
+                />
+              </div>
+              {errors.headline && (
+                <div className="text-right">
+                  <FieldError message={errors.headline} />
+                </div>
+              )}
             </div>
 
             <BodyText>
@@ -229,7 +236,11 @@ export default function FinalSubmissionStep({
                 options={["Yes", "No"]}
               />
             </div>
-            <FieldError message={errors.shareDeck} />
+            {errors.shareDeck && (
+              <div className="text-right">
+                <FieldError message={errors.shareDeck} />
+              </div>
+            )}
           </section>
         </>
       )}
