@@ -25,9 +25,9 @@ export default function GPPortalHeader({
   return (
     <>
       <header className="sticky top-0 z-30 w-full bg-white shadow-sm">
-        <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-4 sm:px-8">
+        <div className="mx-auto grid h-16 w-full max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 sm:h-20 sm:px-8">
           {/* Left: Quick Navigation / Brand Indicator */}
-          <div className="flex items-center gap-5 text-base font-medium text-slate-600">
+          <div className="flex items-center justify-start gap-2 text-base font-medium text-slate-600 sm:gap-5">
             <Link
               href={`/gp-application/details/${token}`}
               className={`flex items-center gap-1.5 transition hover:text-[#1B365D] ${
@@ -36,10 +36,10 @@ export default function GPPortalHeader({
                   : "text-slate-500"
               }`}
             >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
+              <LayoutDashboard className="h-5 w-5" aria-label="Dashboard" />
+              <span className="hidden md:inline">Dashboard</span>
             </Link>
-            <span className="text-slate-300">|</span>
+            <span className="hidden text-slate-300 sm:inline">|</span>
             <Link
               href={`/gp-application/form/${token}`}
               className={`flex items-center gap-1.5 transition hover:text-[#1B365D] ${
@@ -48,24 +48,24 @@ export default function GPPortalHeader({
                   : "text-slate-500"
               }`}
             >
-              <FileText className="h-5 w-5" />
-              <span>Application</span>
+              <FileText className="h-5 w-5" aria-label="Application" />
+              <span className="hidden md:inline">Application</span>
             </Link>
           </div>
 
           {/* Center: RAISE Wordmark */}
-          <div className="absolute left-1/2 -translate-x-1/2 text-center">
+          <div className="text-center">
             <Link
               href={`/gp-application/form/${token}`}
               aria-label="RAISE home"
               className="inline-flex items-center"
             >
-              <Logo variant="light" className="h-11 w-auto" />
+              <Logo variant="light" className="h-7 w-auto sm:h-11" />
             </Link>
           </div>
 
           {/* Right: FAQ & User Actions */}
-          <div className="flex items-center gap-5 text-base text-slate-600">
+          <div className="flex items-center justify-end gap-2 text-base text-slate-600 sm:gap-5">
             <button
               type="button"
               onClick={() => setIsFaqOpen(true)}
@@ -73,7 +73,7 @@ export default function GPPortalHeader({
             >
               FAQ
             </button>
-            <span className="text-slate-300">|</span>
+            <span className="hidden text-slate-300 sm:inline">|</span>
             {company && (
               <span className="hidden font-semibold text-slate-700 md:inline">
                 {company}
